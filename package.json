@@ -20,7 +20,8 @@
     "commitlint": "commitlint --edit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "dev": "pnpm -F pulao run dev"
+    "dev": "pnpm -F web run dev",
+    "build": "pnpm -F web run build"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^3.11.2",

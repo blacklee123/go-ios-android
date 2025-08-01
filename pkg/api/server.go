@@ -2,12 +2,14 @@ package api
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"time"
 
+	"github.com/blacklee123/go-ios-android/pkg/web"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -39,18 +41,18 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 }
 
 func (s *Server) registerHandlers() {
-	// distFS, err := fs.Sub(web.StaticFS, "dist")
-	// if err != nil {
-	// 	log.Fatal("failed to create sub filesystem from embed.FS: ", err)
-	// }
-	// subFs := http.FS(distFS)
-	// s.router.GET("/", func(c *gin.Context) {
-	// 	c.FileFromFS("", subFs)
-	// })
+	distFS, err := fs.Sub(web.StaticFS, "dist")
+	if err != nil {
+		log.Fatal("failed to create sub filesystem from embed.FS: ", err)
+	}
+	subFs := http.FS(distFS)
+	s.router.GET("/", func(c *gin.Context) {
+		c.FileFromFS("", subFs)
+	})
 
-	// s.router.GET("/assets/*filepath", func(c *gin.Context) {
-	// 	c.FileFromFS(c.Request.URL.Path, subFs)
-	// })
+	s.router.GET("/assets/*filepath", func(c *gin.Context) {
+		c.FileFromFS(c.Request.URL.Path, subFs)
+	})
 
 	api := s.router.Group("/api")
 	api.GET("/ios", s.hListIOS)
@@ -60,6 +62,7 @@ func (s *Server) registerHandlers() {
 	iosDevice.GET("", s.hRetrieveIOS)
 	iosDevice.GET("/apps", s.hListApp)
 	iosDevice.POST("/apps", s.hInstallApp)
+	iosDevice.GET("/screenshot", s.hScreenshot)
 	iosDevice.GET("fsync/list/*filepath", s.hListFiles)
 	iosDevice.GET("fsync/pull/*filepath", s.hPullFile)
 

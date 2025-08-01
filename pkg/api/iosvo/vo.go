@@ -5,7 +5,6 @@ type DeviceInfo struct {
 	DeviceName      string `json:"device_name"`
 	DevicePlatform  string `json:"device_platform"`
 	DeviceSerialNo  string `json:"device_serialno"`
-	Port            int    `json:"port"`
-	RelayOK         bool   `json:"relay_ok"`
+	WdaPort         int    `json:"wda_port"`
 	Version         string `json:"version"`
 }

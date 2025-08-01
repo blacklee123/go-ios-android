@@ -3,3 +3,14 @@ go-ios-android.exe
 selfIdentity.plist
 .DS_Store
 .tmp/
+
+__debug_bin*
+node_modules
+dist
+dist-ssr
+*.local
+.env
+
+/pkg/web/dist/*
+gia
+gia.exe

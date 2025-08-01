@@ -1,0 +1,45 @@
+{
+  "name": "go-ios-android",
+  "type": "module",
+  "version": "1.0.0",
+  "packageManager": "pnpm@9.14.4",
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "main": "index.js",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint-staged": "lint-staged --allow-empty",
+    "commitlint": "commitlint --edit",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "dev": "pnpm -F pulao run dev"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^3.11.2",
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "eslint": "^9.16.0",
+    "expect": "^29.7.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.2",
+    "vite-plugin-enhance-log": "^0.6.2"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:storybook/recommended"
+    ]
+  }
+}

@@ -1,0 +1,73 @@
+package api
+
+import (
+	"github.com/blacklee123/go-ios-android/pkg/utils"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/forward"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
+	"go.uber.org/zap"
+)
+
+func (s *Server) retrieveDevice(udid string) (ios.DeviceEntry, error) {
+	device, err := ios.GetDevice(udid)
+	if err != nil {
+		s.logger.Error("failed to get device", zap.String("udid", udid), zap.Error(err))
+		return ios.DeviceEntry{}, err
+	}
+	info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, ios.HttpApiHost(), ios.HttpApiPort())
+	if err == nil {
+		device.UserspaceTUNPort = info.UserspaceTUNPort
+		device.UserspaceTUNHost = ios.HttpApiHost()
+		device.UserspaceTUN = info.UserspaceTUN
+		device = s.deviceWithRsdProvider(device, device.Properties.SerialNumber, info.Address, info.RsdPort)
+	} else {
+		s.logger.Warn("failed to get tunnel info", zap.String("udid", device.Properties.SerialNumber))
+	}
+	return device, nil
+}
+
+func (s *Server) deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
+	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort, device)
+	if err != nil {
+		s.logger.Error("could not connect to RSD", zap.Error(err))
+		return device // 返回原始设备信息
+	}
+	defer rsdService.Close()
+	rsdProvider, err := rsdService.Handshake()
+	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNHost = device.UserspaceTUNHost
+	device1.UserspaceTUNPort = device.UserspaceTUNPort
+	if err != nil {
+		s.logger.Error("could not get device with RSD", zap.Error(err))
+		return device1 // 返回原始设备信息
+	}
+	return device1
+}
+
+func (s *Server) addForward(udid string, hostPort int, targetPort int) {
+	if _, exists := s.forwards[udid]; !exists {
+		s.forwards[udid] = make(map[int]int)
+	}
+	s.forwards[udid][targetPort] = hostPort
+
+}
+
+func (s *Server) createForward(device ios.DeviceEntry, hostPort int, phonePort int) (*forward.ConnListener, error) {
+	// targetPort = 5001
+	if hostPort == 0 {
+		hostPort = utils.GiveAvialablePortFromSpecifyStart(phonePort)
+	}
+
+	cl, err := forward.Forward(device, uint16(hostPort), uint16(phonePort))
+	if err != nil {
+		s.logger.Error("failed to forward port",
+			zap.String("udid", device.Properties.SerialNumber),
+			zap.Uint16("hostPort", uint16(hostPort)),
+			zap.Uint16("phonePort", uint16(phonePort)), zap.Error(err))
+		return nil, err
+	}
+	s.addForward(device.Properties.SerialNumber, hostPort, phonePort)
+	return cl, nil
+}

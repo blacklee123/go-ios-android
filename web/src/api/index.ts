@@ -1,5 +1,5 @@
-import { createAxiosInstance } from '@/utils/api.service'
 import NProgress from 'nprogress'
+import { createAxiosInstance } from '@/utils/api.service'
 import 'nprogress/nprogress.css'
 
 export * from './ios'

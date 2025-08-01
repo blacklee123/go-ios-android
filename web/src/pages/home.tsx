@@ -1,6 +1,5 @@
-import type { Device } from '@/api'
 import type { DescriptionsProps } from 'antd'
-import { listIos } from '@/api'
+import type { Device } from '@/api'
 import { useRequest } from 'ahooks'
 import {
   Button,
@@ -8,13 +7,14 @@ import {
   Col,
   Descriptions,
   Flex,
+  Image,
   Popover,
   Row,
   Space,
   Spin,
-  Image,
 } from 'antd'
 import React from 'react'
+import { listIos } from '@/api'
 
 const Home: React.FC = () => {
   const { data: devices = [], loading } = useRequest(listIos)

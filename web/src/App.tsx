@@ -1,11 +1,11 @@
-import { RouterProvider, createHashRouter } from 'react-router'
-import { App, ConfigProvider } from 'antd'
 import NiceModal from '@ebay/nice-modal-react'
-import { routes } from './routes'
+import { App, ConfigProvider } from 'antd'
 import zhCN from 'antd/es/locale/zh_CN'
+import { createHashRouter, RouterProvider } from 'react-router'
+import { routes } from './routes'
 
 function MyApp() {
-    return (
+  return (
     <ConfigProvider
       locale={zhCN}
       componentSize="middle"
@@ -17,7 +17,6 @@ function MyApp() {
       </App>
     </ConfigProvider>
   )
-
 }
 
 export default MyApp

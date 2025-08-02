@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/blacklee123/go-ios-android/pkg/web"
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -25,6 +26,7 @@ type Server struct {
 	logger   *zap.Logger
 	config   *Config
 	forwards map[string]map[int]int
+	devices  map[string]ios.DeviceEntry
 }
 
 func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
@@ -36,6 +38,7 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 		logger:   logger,
 		config:   config,
 		forwards: make(map[string]map[int]int),
+		devices:  make(map[string]ios.DeviceEntry),
 	}
 	return srv, nil
 }
@@ -57,8 +60,7 @@ func (s *Server) registerHandlers() {
 	api := s.router.Group("/api")
 	api.GET("/ios", s.hListIOS)
 	iosDevice := api.Group("/ios/:udid")
-	iosDevice.Use(DeviceMiddleware())
-
+	iosDevice.Use(s.DeviceMiddleware())
 	iosDevice.GET("", s.hRetrieveIOS)
 	iosDevice.GET("/apps", s.hListApp)
 	iosDevice.POST("/apps", s.hInstallApp)
@@ -67,7 +69,9 @@ func (s *Server) registerHandlers() {
 	iosDevice.GET("fsync/pull/*filepath", s.hPullFile)
 
 	iosApp := iosDevice.Group("/apps/:bundleid")
-	iosApp.GET("/uninstall", s.hUninstallApp)
+	iosApp.POST("/launch", s.hLaunchApp)
+	iosApp.POST("/kill", s.hKillApp)
+	iosApp.POST("/uninstall", s.hUninstallApp)
 	iosApp.GET("/fsync/list/*filepath", s.hListFiles)
 	iosApp.GET("/fsync/pull/*filepath", s.hPullFile)
 

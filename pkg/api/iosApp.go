@@ -11,6 +11,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
+	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -38,11 +39,9 @@ func (s *Server) hListApp(c *gin.Context) {
 }
 
 func (s *Server) hUninstallApp(c *gin.Context) {
-	udid := c.Param("udid")
-	bundleId := c.Param("bundleid")
-	s.logger.Info("uninstallApp", zap.String("udid", udid), zap.String("bundleId", bundleId))
-
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	bundleId := c.Param("bundleid")
+	s.logger.Info("uninstallApp", zap.String("udid", device.Properties.SerialNumber), zap.String("bundleId", bundleId))
 
 	if err := s._uninstallApp(device, bundleId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -51,8 +50,100 @@ func (s *Server) hUninstallApp(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"message": "uninstalled " + bundleId + " from device " + udid,
+		"message": "uninstalled " + bundleId + " from device " + device.Properties.SerialNumber,
 	})
+}
+
+func (s *Server) hLaunchApp(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	bundleId := c.Param("bundleid")
+	if bundleId == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "bundleId is missing"})
+		return
+	}
+	s.logger.Info("launchApp", zap.String("udid", device.Properties.SerialNumber), zap.String("bundleId", bundleId))
+
+	pControl, err := instruments.NewProcessControl(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	_, err = pControl.LaunchApp(bundleId, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: bundleId + " launched successfully"})
+}
+
+func (s *Server) hKillApp(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	processName := ""
+	bundleId := c.Param("bundleid")
+	if bundleId == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "bundleId is missing"})
+		return
+	}
+	s.logger.Info("launchApp", zap.String("udid", device.Properties.SerialNumber), zap.String("bundleId", bundleId))
+
+	pControl, err := instruments.NewProcessControl(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	response, err := svc.BrowseAllApps()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	for _, app := range response {
+		if app.CFBundleIdentifier() == bundleId {
+			processName = app.CFBundleExecutable()
+			break
+		}
+	}
+
+	if processName == "" {
+		c.JSON(http.StatusNotFound, GenericResponse{Message: bundleId + " is not installed"})
+		return
+	}
+
+	service, err := instruments.NewDeviceInfoService(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	defer service.Close()
+
+	processList, err := service.ProcessList()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	for _, p := range processList {
+		if p.Name == processName {
+			err = pControl.KillProcess(p.Pid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, GenericResponse{Message: bundleId + " successfully killed"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: bundleId + " is not running"})
 }
 
 func (s *Server) hInstallApp(c *gin.Context) {

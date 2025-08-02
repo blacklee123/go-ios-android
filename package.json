@@ -23,6 +23,10 @@
     "dev": "pnpm -F web run dev",
     "build": "pnpm -F web run build"
   },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "tailwindcss": "^4.1.11"
+  },
   "devDependencies": {
     "@antfu/eslint-config": "^5.0.0",
     "@commitlint/cli": "^19.6.0",

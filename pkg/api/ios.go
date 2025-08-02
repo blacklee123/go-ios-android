@@ -18,32 +18,34 @@ func (s *Server) retrieveDevice(udid string) (ios.DeviceEntry, error) {
 	info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, ios.HttpApiHost(), ios.HttpApiPort())
 	if err == nil {
 		device.UserspaceTUNPort = info.UserspaceTUNPort
-		device.UserspaceTUNHost = ios.HttpApiHost()
 		device.UserspaceTUN = info.UserspaceTUN
-		device = s.deviceWithRsdProvider(device, device.Properties.SerialNumber, info.Address, info.RsdPort)
+		return s.deviceWithRsdProvider(device, device.Properties.SerialNumber, info.Address, info.RsdPort)
 	} else {
 		s.logger.Warn("failed to get tunnel info", zap.String("udid", device.Properties.SerialNumber))
 	}
 	return device, nil
 }
 
-func (s *Server) deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
+func (s *Server) deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) (ios.DeviceEntry, error) {
 	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort, device)
 	if err != nil {
 		s.logger.Error("could not connect to RSD", zap.Error(err))
-		return device // 返回原始设备信息
+		return device, err // 返回原始设备信息
 	}
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
-	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
-	device1.UserspaceTUN = device.UserspaceTUN
-	device1.UserspaceTUNHost = device.UserspaceTUNHost
-	device1.UserspaceTUNPort = device.UserspaceTUNPort
 	if err != nil {
-		s.logger.Error("could not get device with RSD", zap.Error(err))
-		return device1 // 返回原始设备信息
+		return device, err
 	}
-	return device1
+	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	if err != nil {
+		return device, err
+	}
+
+	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNPort = device.UserspaceTUNPort
+
+	return device1, nil
 }
 
 func (s *Server) addForward(udid string, hostPort int, targetPort int) {

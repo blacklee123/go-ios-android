@@ -11,16 +11,8 @@ import (
 )
 
 func (s *Server) hListIOS(c *gin.Context) {
-	deviceList, err := ios.ListDevices()
-	if err != nil {
-		s.logger.Error("failed to list devices", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed getting device list",
-		})
-		return // 必须return，否则会继续执行下面的代码
-	}
-	ret := make([]iosvo.DeviceInfo, 0, len(deviceList.DeviceList))
-	for _, device := range deviceList.DeviceList {
+	ret := make([]iosvo.DeviceInfo, 0, len(s.devices))
+	for _, device := range s.devices {
 
 		allValues, err := ios.GetValues(device)
 		if err != nil {

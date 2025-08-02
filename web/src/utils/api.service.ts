@@ -57,7 +57,7 @@ export function createAxiosInstance({
     (error: AxiosError<ApiResponse>) => {
       console.error(error)
       const status = error.response?.status
-      let message = error.response?.data.message || ''
+      let message = error.response?.data.message || error.response?.data.error || ''
       switch (status) {
         case 403:
           message = `拒绝访问${message}`
@@ -72,8 +72,9 @@ export function createAxiosInstance({
           message = `网络连接故障${message}`
       }
       notification.error({
-        message: '服务器故障',
+        message: error.request.responseURL,
         description: message,
+        duration: 5,
       })
       return Promise.reject(error)
     },

@@ -21,3 +21,7 @@ export interface Device {
   nickName: string
   user: string
 }
+
+export interface App {
+
+}

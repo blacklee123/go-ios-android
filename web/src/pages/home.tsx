@@ -14,41 +14,11 @@ import {
   Spin,
 } from 'antd'
 import React from 'react'
+import { Link } from 'react-router'
 import { listIos } from '@/api'
 
 const Home: React.FC = () => {
   const { data: devices = [], loading } = useRequest(listIos)
-
-  function createDevicesDescriptions(record: Device) {
-    const items: DescriptionsProps['items'] = [
-      {
-        key: '1',
-        label: '设备型号',
-        children: <p>{record.model}</p>,
-      },
-      {
-        key: '1',
-        label: '制造商',
-        children: <p>{record.manufacturer}</p>,
-      },
-      {
-        key: '1',
-        label: '设备系统',
-        children: <p>{`${record.platform} ${record.version}`}</p>,
-      },
-      {
-        key: '1',
-        label: '电池电量',
-        children: <p>{`${record.level}%`}</p>,
-      },
-      {
-        key: '1',
-        label: '电池温度',
-        children: <p>{record.temperature / 10}</p>,
-      },
-    ]
-    return items
-  }
 
   return (
     <Spin spinning={loading}>
@@ -71,7 +41,7 @@ const Home: React.FC = () => {
                     </Col>
                   </Row>
                   <Flex justify="center" gap={12}>
-                    <Button type="primary" size="small">马上使用</Button>
+                    <Link to={`/ios/${device.device_serialno}`}><Button type="primary" size="small">马上使用</Button></Link>
                     <Popover
                       content={<Descriptions className="w-48" column={1} items={createDevicesDescriptions(device)} />}
                       placement="top"
@@ -87,6 +57,37 @@ const Home: React.FC = () => {
       </Row>
     </Spin>
   )
+}
+
+function createDevicesDescriptions(record: Device) {
+  const items: DescriptionsProps['items'] = [
+    {
+      key: '1',
+      label: '设备型号',
+      children: <p>{record.model}</p>,
+    },
+    {
+      key: '1',
+      label: '制造商',
+      children: <p>{record.manufacturer}</p>,
+    },
+    {
+      key: '1',
+      label: '设备系统',
+      children: <p>{`${record.platform} ${record.version}`}</p>,
+    },
+    {
+      key: '1',
+      label: '电池电量',
+      children: <p>{`${record.level}%`}</p>,
+    },
+    {
+      key: '1',
+      label: '电池温度',
+      children: <p>{record.temperature / 10}</p>,
+    },
+  ]
+  return items
 }
 
 export { Home }

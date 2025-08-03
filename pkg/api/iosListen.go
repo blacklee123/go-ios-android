@@ -49,10 +49,10 @@ func (s *Server) StartIosListening() {
 			if msg.MessageType == "Attached" {
 				time.Sleep(time.Second * 3)
 				device, _ := s.retrieveDevice(msg.Properties.SerialNumber)
-				s.devices[msg.Properties.SerialNumber] = device
+				s.iosDevices[msg.Properties.SerialNumber] = device
 				go s.runWdaCommand(device)
 			} else if msg.MessageType == "Detached" {
-				delete(s.devices, msg.Properties.SerialNumber)
+				delete(s.iosDevices, msg.Properties.SerialNumber)
 			}
 		}
 	}

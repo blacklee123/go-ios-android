@@ -1,7 +1,10 @@
 package api
 
 import (
+	"io"
 	"net/http"
+
+	"github.com/danielpaulus/go-ios/ios/syslog"
 
 	"github.com/blacklee123/go-ios-android/pkg/api/iosvo"
 	"github.com/danielpaulus/go-ios/ios"
@@ -17,8 +20,8 @@ func (s *Server) hListIOS(c *gin.Context) {
 }
 
 func (s *Server) listIOS() []iosvo.Device {
-	devices := make([]iosvo.Device, 0, len(s.devices))
-	for _, device := range s.devices {
+	devices := make([]iosvo.Device, 0, len(s.iosDevices))
+	for _, device := range s.iosDevices {
 
 		allValues, err := ios.GetValues(device)
 		s.logger.Info("allValues", zap.Any("allValues", allValues))
@@ -80,7 +83,7 @@ func (s *Server) hRetrieveIOS(c *gin.Context) {
 		DeviceName:      allValues.Value.DeviceName,
 		DevicePlatform:  "ios",
 		DeviceSerialNo:  device.Properties.SerialNumber,
-		WdaPort:         s.forwards[device.Properties.SerialNumber][8100],
+		WdaPort:         s.iosForwards[device.Properties.SerialNumber][8100],
 		Version:         allValues.Value.ProductVersion,
 	})
 }
@@ -294,4 +297,22 @@ var generationMap = map[string]string{
 	"iPod9,1":       "iPod touch (7th generation)",
 	"iProd8,1":      "AirPods Pro",
 	"iProd8,6":      "AirPods Max",
+}
+
+func (s *Server) hSyslog(c *gin.Context) {
+	// We are streaming current time to clients in the interval 10 seconds
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	syslogConnection, err := syslog.New(device)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	c.Stream(func(w io.Writer) bool {
+		m, _ := syslogConnection.ReadLogMessage()
+		s.logger.Info("syslog", zap.String("message", m), zap.String("udid", device.Properties.SerialNumber))
+		// Stream message to client from message channel
+		// w.Write([]byte(utils.MustMarshal(m)))
+		c.SSEvent("message", m)
+		return true
+	})
 }

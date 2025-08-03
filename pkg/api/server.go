@@ -26,8 +26,8 @@ type Server struct {
 	router        *gin.Engine
 	logger        *zap.Logger
 	config        *Config
-	forwards      map[string]map[int]int
-	devices       map[string]ios.DeviceEntry
+	iosForwards   map[string]map[int]int
+	iosDevices    map[string]ios.DeviceEntry
 	androidDevice map[string]adb.Device
 }
 
@@ -39,8 +39,8 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 		router:        gin.Default(),
 		logger:        logger,
 		config:        config,
-		forwards:      make(map[string]map[int]int),
-		devices:       make(map[string]ios.DeviceEntry),
+		iosForwards:   make(map[string]map[int]int),
+		iosDevices:    make(map[string]ios.DeviceEntry),
 		androidDevice: make(map[string]adb.Device),
 	}
 	return srv, nil
@@ -87,6 +87,7 @@ func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice.GET("/screenshot", s.hScreenshot)
 	iosDevice.GET("fsync/list/*filepath", s.hListFiles)
 	iosDevice.GET("fsync/pull/*filepath", s.hPullFile)
+    iosDevice.GET("/syslog", streamingMiddleWare, s.hSyslog)
 
 	iosApp := iosDevice.Group("/apps/:bundleid")
 	iosApp.POST("/launch", s.hLaunchApp)

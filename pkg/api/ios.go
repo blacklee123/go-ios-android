@@ -49,10 +49,10 @@ func (s *Server) deviceWithRsdProvider(device ios.DeviceEntry, udid string, addr
 }
 
 func (s *Server) addForward(udid string, hostPort int, targetPort int) {
-	if _, exists := s.forwards[udid]; !exists {
-		s.forwards[udid] = make(map[int]int)
+	if _, exists := s.iosForwards[udid]; !exists {
+		s.iosForwards[udid] = make(map[int]int)
 	}
-	s.forwards[udid][targetPort] = hostPort
+	s.iosForwards[udid][targetPort] = hostPort
 
 }
 

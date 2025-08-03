@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var streamingMiddleWare = StreamingHeaderMiddleware()
+
 // DeviceMiddleware makes sure a udid was specified and that a device with that UDID
 // is connected with the host. Will return 404 if the device is not found or 500 if something
 // else went wrong. Use `device := c.MustGet(IOS_KEY).(ios.DeviceEntry)` to acquire the device
@@ -19,7 +21,7 @@ func (s *Server) DeviceMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{"message": "udid is missing"})
 			return
 		}
-		device, ok := s.devices[udid]
+		device, ok := s.iosDevices[udid]
 		if ok {
 			c.Set(IOS_KEY, device)
 			c.Next()

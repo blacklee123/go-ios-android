@@ -1,8 +1,9 @@
+import type { Device } from './types'
 import NProgress from 'nprogress'
 import { createAxiosInstance } from '@/utils/api.service'
 import 'nprogress/nprogress.css'
 
-export * from './ios'
+export * from './types'
 
 NProgress.configure({
   showSpinner: false,
@@ -35,3 +36,7 @@ export const axiosInstance = createAxiosInstance({
   startLoading: () => startLoading(),
   endLoading: () => endLoading(),
 })
+
+export function listDevice(): Promise<Device[]> {
+  return axiosInstance.get('/list')
+}

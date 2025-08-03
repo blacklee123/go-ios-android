@@ -12,7 +12,3 @@ export interface Device {
   udId: string
   version: string
 }
-
-export interface App {
-
-}

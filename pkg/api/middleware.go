@@ -30,7 +30,26 @@ func (s *Server) DeviceMiddleware() gin.HandlerFunc {
 	}
 }
 
+func (s *Server) AndroidDeviceMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		udid := c.Param("udid")
+		if udid == "" {
+			c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{"message": "udid is missing"})
+			return
+		}
+		device, ok := s.androidDevice[udid]
+		if ok {
+			c.Set(ANDROID_KEY, device)
+			c.Next()
+		} else {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "device not found on the host"})
+			return
+		}
+	}
+}
+
 const IOS_KEY = "go_ios_device"
+const ANDROID_KEY = "go_android_device"
 
 // LimitNumClientsUDID limits clients to one concurrent connection per device UDID at a time
 func LimitNumClientsUDID() gin.HandlerFunc {

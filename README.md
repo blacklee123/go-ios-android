@@ -6,9 +6,14 @@ first step start the tunnel
 sudo gia tunnel start
 ```
 
-secend step
+secend step start the adb server
+```bash
+adb -a nodaemon server
+```
+
+last step
 ```bash
 gia server
 ```
 
-then visite http://127.0.0.1:15037/api/ios/list
+then visite http://127.0.0.1:15037 or http://yourip:15037

@@ -9,6 +9,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/blacklee123/go-adb/adb"
 	"github.com/blacklee123/go-ios-android/pkg/web"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gin-gonic/gin"
@@ -22,11 +23,12 @@ type Config struct {
 }
 
 type Server struct {
-	router   *gin.Engine
-	logger   *zap.Logger
-	config   *Config
-	forwards map[string]map[int]int
-	devices  map[string]ios.DeviceEntry
+	router        *gin.Engine
+	logger        *zap.Logger
+	config        *Config
+	forwards      map[string]map[int]int
+	devices       map[string]ios.DeviceEntry
+	androidDevice map[string]adb.Device
 }
 
 func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
@@ -34,16 +36,34 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 	config.TmpDir = path.Join(config.TmpDir, ".tmp")
 	os.MkdirAll(config.TmpDir, os.ModePerm)
 	srv := &Server{
-		router:   gin.Default(),
-		logger:   logger,
-		config:   config,
-		forwards: make(map[string]map[int]int),
-		devices:  make(map[string]ios.DeviceEntry),
+		router:        gin.Default(),
+		logger:        logger,
+		config:        config,
+		forwards:      make(map[string]map[int]int),
+		devices:       make(map[string]ios.DeviceEntry),
+		androidDevice: make(map[string]adb.Device),
 	}
 	return srv, nil
 }
 
 func (s *Server) registerHandlers() {
+
+	s.registerWebHandlers()
+
+	api := s.router.Group("/api")
+	api.GET("/list", func(ctx *gin.Context) {
+		ios := s.listIOS()
+		android := s.listAndroid()
+		ctx.JSON(http.StatusOK, append(ios, android...))
+	})
+	api.GET("/ios", s.hListIOS)
+	api.GET("/android", s.hListAndroid)
+
+	s.registerIosHandlers(api)
+	s.registerAndroidHandlers(api)
+}
+
+func (s *Server) registerWebHandlers() {
 	distFS, err := fs.Sub(web.StaticFS, "dist")
 	if err != nil {
 		log.Fatal("failed to create sub filesystem from embed.FS: ", err)
@@ -57,8 +77,8 @@ func (s *Server) registerHandlers() {
 		c.FileFromFS(c.Request.URL.Path, subFs)
 	})
 
-	api := s.router.Group("/api")
-	api.GET("/ios", s.hListIOS)
+}
+func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice := api.Group("/ios/:udid")
 	iosDevice.Use(s.DeviceMiddleware())
 	iosDevice.GET("", s.hRetrieveIOS)
@@ -74,7 +94,12 @@ func (s *Server) registerHandlers() {
 	iosApp.POST("/uninstall", s.hUninstallApp)
 	iosApp.GET("/fsync/list/*filepath", s.hListFiles)
 	iosApp.GET("/fsync/pull/*filepath", s.hPullFile)
+}
 
+func (s *Server) registerAndroidHandlers(api *gin.RouterGroup) {
+	androidDevice := api.Group("/android/:udid")
+	androidDevice.Use(s.AndroidDeviceMiddleware())
+	androidDevice.GET("screenshot", s.hAndroidScreenshot)
 }
 
 func (s *Server) registerMiddlewares() {
@@ -90,6 +115,7 @@ func (s *Server) ListenAndServe() *http.Server {
 		s.logger.Fatal("iOS tunnel is not running, please use `sudo go-ios-android tunnel start` to start")
 	}
 	go s.StartIosListening()
+	go s.StartAdbListening()
 	return srv
 }
 

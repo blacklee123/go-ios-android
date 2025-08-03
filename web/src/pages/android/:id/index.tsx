@@ -5,7 +5,7 @@ import React from 'react'
 import { useParams } from 'react-router'
 import { AppTabPane } from './components/AppTabPane'
 
-const Ios: React.FC = () => {
+const Android: React.FC = () => {
   const params = useParams()
   const [sizes, setSizes] = useLocalStorageState<(number | string)[]>(
     'use-local-storage-state-splitter-size',
@@ -43,7 +43,7 @@ const Ios: React.FC = () => {
     <Splitter className="h-full" onResize={setSizes}>
       <Splitter.Panel size={sizes[0]} min="20%" max="50%" className="p-2">
         <div className="h-full">
-          <img className="max-h-full mx-auto" alt="这里应该有一张图片" src={`/api/ios/${params.udid}/screenshot`} />
+          <img className="max-h-full mx-auto" alt="这里应该有一张图片" src={`/api/android/${params.udid}/screenshot`} />
         </div>
       </Splitter.Panel>
       <Splitter.Panel size={sizes[1]} className="p-2">
@@ -56,5 +56,5 @@ const Ios: React.FC = () => {
 }
 
 export {
-  Ios,
+  Android,
 }

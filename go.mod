@@ -3,13 +3,13 @@ module github.com/blacklee123/go-ios-android
 go 1.22.6
 
 require (
+	github.com/blacklee123/go-adb v0.0.1
 	github.com/danielpaulus/go-ios v1.0.182
 	github.com/gin-gonic/gin v1.10.1
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
 	go.uber.org/zap v1.27.0
-	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
 )
 
 require (
@@ -46,11 +46,11 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
 	github.com/quic-go/quic-go v0.40.1-0.20231203135336-87ef8ec48d55 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
@@ -72,7 +72,11 @@ require (
 	google.golang.org/protobuf v1.36.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5 // indirect
+	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5 // indirect
 	software.sslmate.com/src/go-pkcs12 v0.2.0 // indirect
 )
 
-replace github.com/danielpaulus/go-ios v1.0.182 => github.com/blacklee123/go-ios v0.0.0-20250801013210-29508abd35ea
+replace (
+	github.com/blacklee123/go-adb => ../go-adb
+	github.com/danielpaulus/go-ios v1.0.182 => github.com/blacklee123/go-ios v0.0.0-20250801013210-29508abd35ea
+)

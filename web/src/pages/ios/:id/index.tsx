@@ -4,9 +4,11 @@ import { Splitter, Tabs } from 'antd'
 import React from 'react'
 import { useParams } from 'react-router'
 import { AppTabPane } from './components/AppTabPane'
+import { SyslogTabPane } from './components/SyslogTabPane'
 
 const Ios: React.FC = () => {
   const params = useParams()
+  const udid = params.udid
   const [sizes, setSizes] = useLocalStorageState<(number | string)[]>(
     'use-local-storage-state-splitter-size',
   {
@@ -25,12 +27,12 @@ const Ios: React.FC = () => {
     {
       key: 'apps',
       label: '应用',
-      children: <AppTabPane udid={params.udid} />,
+      children: <AppTabPane udid={udid} />,
     },
     {
-      key: '2',
-      label: 'Tab 2',
-      children: 'Content of Tab Pane 2',
+      key: 'syslog',
+      label: '系统日志',
+      children: <SyslogTabPane udid={udid} />,
     },
     {
       key: '3',
@@ -43,7 +45,7 @@ const Ios: React.FC = () => {
     <Splitter className="h-full" onResize={setSizes}>
       <Splitter.Panel size={sizes[0]} min="20%" max="50%" className="p-2">
         <div className="h-full">
-          <img className="max-h-full mx-auto" alt="这里应该有一张图片" src={`/api/ios/${params.udid}/screenshot`} />
+          <img className="max-h-full mx-auto" alt="这里应该有一张图片" src={`/api/ios/${udid}/screenshot`} />
         </div>
       </Splitter.Panel>
       <Splitter.Panel size={sizes[1]} className="p-2">

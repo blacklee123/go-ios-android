@@ -56,7 +56,7 @@ func (s *Server) addForward(udid string, hostPort int, targetPort int) {
 
 }
 
-func (s *Server) createForward(device ios.DeviceEntry, hostPort int, phonePort int) (*forward.ConnListener, error) {
+func (s *Server) createForward(device ios.DeviceEntry, hostPort int, phonePort int) (*forward.ConnListener, int, error) {
 	// targetPort = 5001
 	if hostPort == 0 {
 		hostPort = utils.GiveAvialablePortFromSpecifyStart(phonePort)
@@ -68,8 +68,8 @@ func (s *Server) createForward(device ios.DeviceEntry, hostPort int, phonePort i
 			zap.String("udid", device.Properties.SerialNumber),
 			zap.Uint16("hostPort", uint16(hostPort)),
 			zap.Uint16("phonePort", uint16(phonePort)), zap.Error(err))
-		return nil, err
+		return nil, hostPort, err
 	}
 	s.addForward(device.Properties.SerialNumber, hostPort, phonePort)
-	return cl, nil
+	return cl, hostPort, nil
 }

@@ -99,7 +99,7 @@ func (s *Server) runWdaCommand(device ios.DeviceEntry) {
 		stopWda()
 	}()
 	targetPort := 8100
-	cl, err := s.createForward(device, 0, targetPort)
+	cl, _, err := s.createForward(device, 0, targetPort)
 	if err == nil {
 		defer stopForwarding(cl)
 	}

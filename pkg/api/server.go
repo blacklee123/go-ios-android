@@ -87,7 +87,10 @@ func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice.GET("/screenshot", s.hScreenshot)
 	iosDevice.GET("fsync/list/*filepath", s.hListFiles)
 	iosDevice.GET("fsync/pull/*filepath", s.hPullFile)
-    iosDevice.GET("/syslog", streamingMiddleWare, s.hSyslog)
+	iosDevice.GET("/syslog", streamingMiddleWare, s.hSyslog)
+	iosDevice.GET("/forwards", s.hListForward)
+	iosDevice.GET("/forwards/:port", s.hRetrieveForward)
+	iosDevice.POST("/forwards", s.hCreateForward)
 
 	iosApp := iosDevice.Group("/apps/:bundleid")
 	iosApp.POST("/launch", s.hLaunchApp)

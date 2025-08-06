@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"time"
 
@@ -99,9 +102,37 @@ func (s *Server) runWdaCommand(device ios.DeviceEntry) {
 		stopWda()
 	}()
 	targetPort := 8100
-	cl, _, err := s.createForward(device, 0, targetPort)
+	cl, hostPort, err := s.createForward(device, 0, targetPort)
 	if err == nil {
 		defer stopForwarding(cl)
+	}
+	targetURL, _ := url.Parse(fmt.Sprintf("http://localhost:%d", hostPort))
+	client := &http.Client{
+		Timeout: 2 * time.Second, // 设置超时避免阻塞
+	}
+
+	for {
+		resp, err := client.Get(targetURL.String() + "/status")
+		if err == nil && resp.StatusCode == http.StatusOK {
+			s.logger.Info("WDA running", zap.String("serial", device.Properties.SerialNumber))
+			// 确保响应体关闭
+			resp.Body.Close()
+
+			// 创建反向代理并存储
+			proxy := httputil.NewSingleHostReverseProxy(targetURL)
+			s.wdaProxys[device.Properties.SerialNumber] = proxy
+
+			// 成功执行后退出循环
+			break
+		}
+
+		// 如果请求失败，关闭可能打开的响应体
+		if resp != nil {
+			resp.Body.Close()
+		}
+
+		// 添加延迟避免高频请求
+		time.Sleep(1 * time.Second)
 	}
 
 	select {

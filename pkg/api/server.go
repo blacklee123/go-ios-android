@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"path"
 	"time"
@@ -29,6 +30,7 @@ type Server struct {
 	iosForwards   map[string]map[int]int
 	iosDevices    map[string]ios.DeviceEntry
 	androidDevice map[string]adb.Device
+	wdaProxys     map[string]*httputil.ReverseProxy
 }
 
 func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
@@ -42,6 +44,7 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 		iosForwards:   make(map[string]map[int]int),
 		iosDevices:    make(map[string]ios.DeviceEntry),
 		androidDevice: make(map[string]adb.Device),
+		wdaProxys:     make(map[string]*httputil.ReverseProxy),
 	}
 	return srv, nil
 }
@@ -91,6 +94,7 @@ func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice.GET("/forwards", s.hListForward)
 	iosDevice.GET("/forwards/:port", s.hRetrieveForward)
 	iosDevice.POST("/forwards", s.hCreateForward)
+	iosDevice.Any("/wda/*path", s.hWda)
 
 	iosApp := iosDevice.Group("/apps/:bundleid")
 	iosApp.POST("/launch", s.hLaunchApp)

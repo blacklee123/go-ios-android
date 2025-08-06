@@ -12,6 +12,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
     "@ebay/nice-modal-react": "^1.2.13",
+    "@go-ios-android/wda": "workspace:^",
     "ahooks": "^3.9.0",
     "antd": "^5.26.7",
     "axios": "^1.11.0",

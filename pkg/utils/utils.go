@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 )
 
@@ -20,8 +21,9 @@ func isPortInUse(port int, host string) bool {
 // 从指定端口开始，返回第一个可用端口
 func GiveAvialablePortFromSpecifyStart(startPort int) int {
 	host := "localhost"
+	startPort += rand.Intn(1000)
 	for isPortInUse(startPort, host) {
-		startPort++
+		startPort += rand.Intn(1000)
 	}
 	return startPort
 }

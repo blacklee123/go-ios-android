@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/danielpaulus/go-ios/ios/simlocation"
 	"github.com/danielpaulus/go-ios/ios/syslog"
 
 	"github.com/blacklee123/go-ios-android/pkg/api/iosvo"
@@ -179,4 +180,44 @@ func (s *Server) hCreateForward(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, s.iosForwards[device.Properties.SerialNumber])
 
+}
+
+type Location struct {
+	Lat float64 `json:"lat" binding:"required"`
+	Lon float64 `json:"lon" binding:"required"`
+}
+
+func (s *Server) hSetLocation(c *gin.Context) {
+	var location Location
+	// 将请求体绑定到结构体
+	if err := c.ShouldBindJSON(&location); err != nil {
+		// 绑定失败时返回错误信息
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	if device.SupportsRsd() {
+		server, err := instruments.NewLocationSimulationService(device)
+		if err != nil {
+			s.logger.Error("failed to create location simulation service", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+			return
+		}
+		if err := server.StartSimulateLocation(location.Lat, location.Lon); err != nil {
+			s.logger.Error("location simulation failed to start with", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+			return
+		}
+		return
+	}
+	if err := simlocation.SetLocation(device, strconv.FormatFloat(location.Lat, 'f', -1, 64), strconv.FormatFloat(location.Lon, 'f', -1, 64)); err != nil {
+		s.logger.Error("Setting location failed with", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+}
+
+func (s *Server) hResetLocation(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	simlocation.ResetLocation(device)
 }

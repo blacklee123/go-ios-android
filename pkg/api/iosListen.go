@@ -101,12 +101,21 @@ func (s *Server) runWdaCommand(device ios.DeviceEntry) {
 		}
 		stopWda()
 	}()
+
 	targetPort := 8100
 	cl, hostPort, err := s.createForward(device, 0, targetPort)
 	if err == nil {
 		defer stopForwarding(cl)
 	}
 	targetURL, _ := url.Parse(fmt.Sprintf("http://localhost:%d", hostPort))
+
+	videoTargetPort := 9100
+	videoCl, videoHostPort, err := s.createForward(device, 0, videoTargetPort)
+	if err == nil {
+		defer stopForwarding(videoCl)
+	}
+	videoTargetURL, _ := url.Parse(fmt.Sprintf("http://localhost:%d", videoHostPort))
+
 	client := &http.Client{
 		Timeout: 2 * time.Second, // 设置超时避免阻塞
 	}
@@ -121,6 +130,9 @@ func (s *Server) runWdaCommand(device ios.DeviceEntry) {
 			// 创建反向代理并存储
 			proxy := httputil.NewSingleHostReverseProxy(targetURL)
 			s.wdaProxys[device.Properties.SerialNumber] = proxy
+
+			videoProxy := httputil.NewSingleHostReverseProxy(videoTargetURL)
+			s.wdaVideoProxys[device.Properties.SerialNumber] = videoProxy
 
 			// 成功执行后退出循环
 			break

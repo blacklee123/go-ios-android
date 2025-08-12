@@ -65,7 +65,7 @@ const Ios: React.FC = () => {
           <img
             className="object-contain max-h-full mx-auto"
             alt="这里应该有一张图片"
-            src={`/api/ios/${udid}/screenshot`}
+            src={`/api/ios/${udid}/wdavideo/`}
           />
         </Splitter.Panel>
         <Splitter.Panel size={splitterSizes[1]} className="p-2">

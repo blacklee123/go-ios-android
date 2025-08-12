@@ -2,7 +2,10 @@ package tunnel
 
 import (
 	"context"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -14,13 +17,7 @@ import (
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Starts the tunnel service",
 	Run: func(cmd *cobra.Command, args []string) {
 		useUserspaceNetworking, _ := cmd.Flags().GetBool("userspace")
 		pairRecordsPath, _ := cmd.Flags().GetString("pair-record-path")
@@ -36,32 +33,45 @@ to quickly create a Cobra application.`,
 		if strings.ToLower(pairRecordsPath) == "default" {
 			pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 		}
-		startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
+		// 使用可取消的上下文
+		ctx, cancel := context.WithCancel(cmd.Context())
+		defer cancel()
 
+		startTunnel(ctx, pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 	},
 }
 
 func initTunnelStart() {
 	tunnelCmd.AddCommand(startCmd)
-	startCmd.Flags().Bool("userspace", false, "userspace")
-	startCmd.Flags().String("pair-record-path", ".", "pair-record-path")
-	startCmd.Flags().Int("tunnel-info-port", ios.HttpApiPort(), "tunnel-info-port")
+	startCmd.Flags().Bool("userspace", false, "Use userspace networking")
+	startCmd.Flags().String("pair-record-path", ".", "Path to pair records")
+	startCmd.Flags().Int("tunnel-info-port", ios.HttpApiPort(), "Port for tunnel info server")
 }
 
 func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, userspaceTUN bool) {
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
-	exitIfError("could not creat pair record manager", err)
+	exitIfError("could not create pair record manager", err)
 	tm := tunnel.NewTunnelManager(pm, userspaceTUN)
 
+	// 创建可取消的子上下文
+	tunnelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// 监听中断信号
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
+	// 启动隧道更新
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-tunnelCtx.Done():
 				return
 			case <-ticker.C:
-				err := tm.UpdateTunnels(ctx)
+				err := tm.UpdateTunnels(tunnelCtx)
 				if err != nil {
 					log.WithError(err).Warn("failed to update tunnels")
 				}
@@ -69,14 +79,25 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 		}
 	}()
 
+	// 启动隧道信息服务器
+	serverErr := make(chan error, 1)
 	go func() {
 		err := tunnel.ServeTunnelInfo(tm, tunnelInfoPort)
 		if err != nil {
-			exitIfError("failed to start tunnel server", err)
+			serverErr <- err
 		}
 	}()
 	log.Info("Tunnel server started at http://127.0.0.1:", tunnelInfoPort)
-	<-ctx.Done()
+
+	// 等待中断信号或服务器错误
+	select {
+	case <-tunnelCtx.Done():
+		log.Info("Shutting down due to context cancellation")
+	case sig := <-sigCh:
+		log.Infof("Shutting down due to signal: %s", sig)
+	case err := <-serverErr:
+		exitIfError("tunnel server failed", err)
+	}
 }
 
 func exitIfError(msg string, err error) {

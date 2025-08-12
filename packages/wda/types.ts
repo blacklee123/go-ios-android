@@ -1,26 +1,46 @@
-export interface StatusResponse {
-  value: {
-    message: string
-    state: string
-    os: {
-      name: string
-      version: string
-    }
-    ios?: {
-      simulatorVersion?: string
-    }
-    build: {
-      time: string
-    }
-  }
-}
-
-export interface SessionResponse {
+export interface WdaResponse<T> {
+  value: T
   sessionId: string
-  capabilities: Record<string, any>
 }
 
-export interface ActivateSiriResponse {
-  value: null
-  sessionId?: string
-}
+export interface SessionResponse extends WdaResponse<{
+  sdkVersion: string
+  device: string
+}> {}
+
+export interface StatusResponse extends WdaResponse<{
+  message: string
+  state: string
+  ready: boolean
+  os: {
+    testmanagerdVersion: number
+    name: string
+    version: string
+    sdkVersion: string
+  }
+  device: string
+  ios?: {
+    ip: string
+  }
+  build: {
+    time: string
+    version: string
+    productBundleIdentifier: string
+  }
+}> {}
+
+export interface ActivateSiriResponse extends WdaResponse<null> {}
+
+export interface ActiveAppInfoResponse extends WdaResponse<{
+  processArguments: {
+    env: Record<string, string>
+    args: string[]
+  }
+  name: string
+  pid: number
+  bundleId: string
+}> {}
+
+export interface SetPasteboardResponse extends WdaResponse<null> {}
+
+export interface GetPasteboardResponse extends WdaResponse<string> {}

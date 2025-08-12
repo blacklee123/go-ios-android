@@ -24,13 +24,14 @@ type Config struct {
 }
 
 type Server struct {
-	router        *gin.Engine
-	logger        *zap.Logger
-	config        *Config
-	iosForwards   map[string]map[int]int
-	iosDevices    map[string]ios.DeviceEntry
-	androidDevice map[string]adb.Device
-	wdaProxys     map[string]*httputil.ReverseProxy
+	router         *gin.Engine
+	logger         *zap.Logger
+	config         *Config
+	iosForwards    map[string]map[int]int
+	iosDevices     map[string]ios.DeviceEntry
+	androidDevice  map[string]adb.Device
+	wdaProxys      map[string]*httputil.ReverseProxy
+	wdaVideoProxys map[string]*httputil.ReverseProxy
 }
 
 func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
@@ -38,13 +39,14 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 	config.TmpDir = path.Join(config.TmpDir, ".tmp")
 	os.MkdirAll(config.TmpDir, os.ModePerm)
 	srv := &Server{
-		router:        gin.Default(),
-		logger:        logger,
-		config:        config,
-		iosForwards:   make(map[string]map[int]int),
-		iosDevices:    make(map[string]ios.DeviceEntry),
-		androidDevice: make(map[string]adb.Device),
-		wdaProxys:     make(map[string]*httputil.ReverseProxy),
+		router:         gin.Default(),
+		logger:         logger,
+		config:         config,
+		iosForwards:    make(map[string]map[int]int),
+		iosDevices:     make(map[string]ios.DeviceEntry),
+		androidDevice:  make(map[string]adb.Device),
+		wdaProxys:      make(map[string]*httputil.ReverseProxy),
+		wdaVideoProxys: make(map[string]*httputil.ReverseProxy),
 	}
 	return srv, nil
 }
@@ -95,6 +97,9 @@ func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice.GET("/forwards/:port", s.hRetrieveForward)
 	iosDevice.POST("/forwards", s.hCreateForward)
 	iosDevice.Any("/wda/*path", s.hWda)
+	iosDevice.Any("/wdavideo/*path", s.hWdaVideo)
+	iosDevice.POST("/location", s.hSetLocation)
+	iosDevice.POST("/location/reset", s.hResetLocation)
 
 	iosApp := iosDevice.Group("/apps/:bundleid")
 	iosApp.POST("/launch", s.hLaunchApp)

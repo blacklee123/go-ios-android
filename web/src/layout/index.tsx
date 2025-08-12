@@ -4,7 +4,7 @@ import { Outlet } from 'react-router'
 
 const MyLayout: React.FC = () => {
   return (
-    <Layout className="h-screen">
+    <Layout className="min-h-screen">
       <Outlet />
     </Layout>
   )

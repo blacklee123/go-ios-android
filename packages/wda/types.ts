@@ -44,3 +44,20 @@ export interface ActiveAppInfoResponse extends WdaResponse<{
 export interface SetPasteboardResponse extends WdaResponse<null> {}
 
 export interface GetPasteboardResponse extends WdaResponse<string> {}
+
+export interface Actions {
+  actions: Action[]
+}
+export interface Action {
+  id: string
+  type: 'pointer'
+  parameters: Record<string, any>
+  actions: TouchAction[]
+}
+
+export interface TouchAction {
+  type: 'pointerDown' | 'pause' | 'pointerMove' | 'pointerUp'
+  duration?: number
+  x?: number
+  y?: number
+}

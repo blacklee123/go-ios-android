@@ -1,5 +1,6 @@
 import type { AxiosError, AxiosInstance, AxiosResponse } from 'axios'
 import type {
+  Action,
   ActivateSiriResponse,
   ActiveAppInfoResponse,
   GetPasteboardResponse,
@@ -146,5 +147,125 @@ export class WebDriverAgentClient {
     return this.client.post(`/session/${this.currentSessionId}/wda/apps/activate`, {
       bundleId,
     })
+  }
+
+  async actions(actions: Action[]): Promise<ActiveAppInfoResponse> {
+    await this.requiresSession()
+    return this.client.post(`/session/${this.currentSessionId}/actions`, {
+      actions,
+    })
+  }
+
+  async tap(x: number, y: number): Promise<ActiveAppInfoResponse> {
+    const action: Action = {
+      id: 'finger-0',
+      type: 'pointer',
+      parameters: { pointerType: 'touch' },
+      actions: [
+        {
+          type: 'pointerMove',
+          x,
+          y,
+        },
+        {
+          type: 'pointerDown',
+        },
+        {
+          type: 'pointerUp',
+        },
+      ],
+    }
+    return this.actions([action])
+  }
+
+  async longPress(x: number, y: number, duration: number = 1500): Promise<ActiveAppInfoResponse> {
+    const action: Action = {
+      id: 'finger-0',
+      type: 'pointer',
+      parameters: { pointerType: 'touch' },
+      actions: [
+        {
+          type: 'pointerMove',
+          x,
+          y,
+        },
+        {
+          type: 'pointerDown',
+        },
+        {
+          type: 'pause',
+          duration,
+        },
+        {
+          type: 'pointerUp',
+        },
+      ],
+    }
+    return this.actions([action])
+  }
+
+  async swipe(fromX: number, fromY: number, toX: number, toY: number): Promise<ActiveAppInfoResponse> {
+    const action: Action = {
+      id: 'finger-0',
+      type: 'pointer',
+      parameters: { pointerType: 'touch' },
+      actions: [
+        {
+          type: 'pointerMove',
+          x: fromX,
+          y: fromY,
+        },
+        {
+          type: 'pointerDown',
+        },
+        {
+          type: 'pause',
+          duration: 300,
+        },
+        {
+          type: 'pointerMove',
+          x: toX,
+          y: toY,
+        },
+        {
+          type: 'pause',
+          duration: 10,
+        },
+        {
+          type: 'pointerUp',
+        },
+      ],
+    }
+    return this.actions([action])
+  }
+
+  async doubleTap(x: number, y: number): Promise<ActiveAppInfoResponse> {
+    await this.requiresSession()
+    return this.client.post(`/session/${this.currentSessionId}/wda/doubleTap`, {
+      x,
+      y,
+    })
+  }
+
+  async pressButton(buttonName: string): Promise<ActiveAppInfoResponse> {
+    await this.requiresSession()
+    return this.client.post(`/session/${this.currentSessionId}/wda/pressButton`, {
+      name: buttonName,
+    })
+  }
+
+  async locked(): Promise<ActiveAppInfoResponse> {
+    await this.requiresSession()
+    return this.client.get(`/session/${this.currentSessionId}/wda/locked`)
+  }
+
+  async lock(): Promise<ActiveAppInfoResponse> {
+    await this.requiresSession()
+    return this.client.post(`/session/${this.currentSessionId}/wda/lock`)
+  }
+
+  async unlock(): Promise<ActiveAppInfoResponse> {
+    await this.requiresSession()
+    return this.client.post(`/session/${this.currentSessionId}/wda/unlock`)
   }
 }

@@ -41,7 +41,7 @@ export interface ActiveAppInfoResponse extends WdaResponse<{
   bundleId: string
 }> {}
 
-export interface SetPasteboardResponse extends WdaResponse<null> {}
+export interface NullResponse extends WdaResponse<null> {}
 
 export interface GetPasteboardResponse extends WdaResponse<string> {}
 

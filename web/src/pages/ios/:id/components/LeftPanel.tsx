@@ -1,101 +1,142 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { HomeOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useRequest } from 'ahooks'
 import { Button, Card, Flex, Space, Spin } from 'antd'
-import React, { useRef } from 'react' // 添加 useState 和 useRef
+import React, { useRef } from 'react'
 
 interface LeftPanelProps {
   udid: string
   driver: WebDriverAgentClient
 }
 
-const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver }) => {
-  let loop = null
-  let time = 0
-  let moveX = 0
-  let moveY = 0
-  let isLongPress = false
+const MOVE_THRESHOLD = 5 // 滑动阈值（设备像素）
 
+const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver }) => {
   const { data: windowSize, loading: windowSizeLoading } = useRequest(() => driver.windowSize())
-  // 使用 ref 获取图片元素
   const imgRef = useRef<HTMLImageElement>(null)
 
-  // 计算设备坐标
+  // 使用ref存储状态
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isLongPressRef = useRef(false)
+  const startPointRef = useRef({ x: 0, y: 0 })
+  const isSwipingRef = useRef(false)
+
   const calculateDeviceCoordinates = (event: React.MouseEvent) => {
     if (!imgRef.current)
       return { x: 0, y: 0 }
 
     const img = imgRef.current
-    // 获取图片实际显示尺寸和位置
     const rect = img.getBoundingClientRect()
-
-    // 计算缩放比例
     const scaleX = windowSize!.value.width / rect.width
     const scaleY = windowSize!.value.height / rect.height
 
-    // 计算相对于图片的坐标
     const x = (event.clientX - rect.left) * scaleX
     const y = (event.clientY - rect.top) * scaleY
 
     return { x, y }
   }
 
-  // 鼠标按下事件
   const _onMouseDown = async (event: React.MouseEvent) => {
     const { x, y } = calculateDeviceCoordinates(event)
-    moveX = x
-    moveY = y
-    clearInterval(loop)
-    loop = setInterval(() => {
-      time += 500
-      if (time >= 1000 && isLongPress === false) {
-        console.log('longPress', x, y)
-        driver.longPress(x, y)
-        isLongPress = true
-      }
-    }, 500)
+    startPointRef.current = { x, y }
+
+    // 重置状态
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+    }
+    isLongPressRef.current = false
+    isSwipingRef.current = false
+
+    // 设置长按定时器
+    longPressTimerRef.current = setTimeout(() => {
+      driver.longPress(x, y)
+      isLongPressRef.current = true
+    }, 1000)
   }
 
-  // 鼠标释放事件
-  const _onMouseUp = (event: React.MouseEvent) => {
-    clearInterval(loop)
-    time = 0
+  const _onMouseMove = (event: React.MouseEvent) => {
+    // 如果已经触发了长按，不再处理移动事件
+    if (isLongPressRef.current)
+      return
+
     const { x, y } = calculateDeviceCoordinates(event)
-    if (moveX === x && moveY === y) {
-      if (!isLongPress) {
-        console.log('tap', x, y)
-        driver.tap(x, y)
+    const dx = Math.abs(x - startPointRef.current.x)
+    const dy = Math.abs(y - startPointRef.current.y)
+
+    // 检查是否达到滑动阈值
+    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+      // 达到滑动阈值，标记为滑动状态
+      isSwipingRef.current = true
+
+      // 取消长按定时器
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
       }
+    }
+  }
+
+  const _onMouseUp = (event: React.MouseEvent) => {
+    // 清除长按定时器
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+
+    // 如果已经触发了长按，不再处理后续操作
+    if (isLongPressRef.current) {
+      isLongPressRef.current = false
+      return
+    }
+
+    const { x, y } = calculateDeviceCoordinates(event)
+
+    if (isSwipingRef.current) {
+      // 触发滑动操作
+      driver.swipe(startPointRef.current.x, startPointRef.current.y, x, y)
     }
     else {
-      console.log('swipe', moveX, moveY, x, y)
-      driver.swipe(moveX, moveY, x, y)
+      // 触发点击操作
+      driver.tap(x, y)
     }
-    isLongPress = false
+
+    // 重置滑动状态
+    isSwipingRef.current = false
   }
 
-  // 鼠标离开事件
   const _onMouseLeave = () => {
-    clearInterval(loop)
-    isLongPress = false
+    // 清除长按定时器
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+
+    // 重置状态
+    isLongPressRef.current = false
+    isSwipingRef.current = false
+  }
+
+  async function pressHome() {
+    await driver.pressButton('home')
   }
 
   return (
     <Card title="设备控制" extra={<InfoCircleOutlined />}>
       <Spin spinning={windowSizeLoading}>
-        <Flex>
-          <Flex vertical>
+        <Flex gap={8}>
+          <Flex vertical gap={8}>
             <img
-              ref={imgRef} // 添加 ref 引用
-              className="object-contain max-h-full mx-auto cursor-pointer" // 添加指针样式
+              ref={imgRef}
+              className="object-contain max-h-full mx-auto cursor-pointer"
               alt="设备屏幕"
               src={`/api/ios/${udid}/wdavideo/`}
-              // 绑定事件处理器
+              draggable="false"
               onMouseDown={_onMouseDown}
+              onMouseMove={_onMouseMove}
               onMouseUp={_onMouseUp}
               onMouseLeave={_onMouseLeave}
             />
-            <Button>按钮</Button>
+            <Button block icon={<HomeOutlined />} onClick={pressHome}></Button>
           </Flex>
           <Space direction="vertical">
             <Button icon={<InfoCircleOutlined />} />

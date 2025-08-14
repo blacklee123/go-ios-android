@@ -4,8 +4,8 @@ import type {
   ActivateSiriResponse,
   ActiveAppInfoResponse,
   GetPasteboardResponse,
+  NullResponse,
   SessionResponse,
-  SetPasteboardResponse,
   StatusResponse,
   WindowSizeResponse,
 } from './types'
@@ -118,7 +118,7 @@ export class WebDriverAgentClient {
     )
   }
 
-  async setPasteboard(content: string, contentType: string = 'plaintext'): Promise<SetPasteboardResponse> {
+  async setPasteboard(content: string, contentType: string = 'plaintext'): Promise<NullResponse> {
     await this.requiresSession()
     return this.client.post(`/session/${this.currentSessionId}/wda/setPasteboard`, {
       content: Base64.encode(content),
@@ -205,7 +205,7 @@ export class WebDriverAgentClient {
     return this.actions([action])
   }
 
-  async swipe(fromX: number, fromY: number, toX: number, toY: number, moveDuration: number = 300): Promise<ActiveAppInfoResponse> {
+  async swipe(fromX: number, fromY: number, toX: number, toY: number): Promise<ActiveAppInfoResponse> {
     const action: Action = {
       id: 'finger-0',
       type: 'pointer',
@@ -215,7 +215,6 @@ export class WebDriverAgentClient {
           type: 'pointerMove',
           x: fromX,
           y: fromY,
-          duration: 100,
         },
         { type: 'pointerDown' },
         { type: 'pause', duration: 300 },
@@ -223,8 +222,34 @@ export class WebDriverAgentClient {
           type: 'pointerMove',
           x: toX,
           y: toY,
-          duration: moveDuration,
         },
+        { type: 'pause', duration: 10 },
+        { type: 'pointerUp' },
+      ],
+    }
+    return this.actions([action])
+  }
+
+  async drag(fromX: number, fromY: number, toX: number, toY: number, duration = 500): Promise<ActiveAppInfoResponse> {
+    const action: Action = {
+      id: 'finger-0',
+      type: 'pointer',
+      parameters: { pointerType: 'touch' },
+      actions: [
+        {
+          type: 'pointerMove',
+          x: fromX,
+          y: fromY,
+        },
+        { type: 'pointerDown' },
+        { type: 'pause', duration: 300 },
+        {
+          type: 'pointerMove',
+          x: toX,
+          y: toY,
+          duration,
+        },
+        { type: 'pause', duration: 10 },
         { type: 'pointerUp' },
       ],
     }
@@ -239,7 +264,7 @@ export class WebDriverAgentClient {
     })
   }
 
-  async pressButton(buttonName: string): Promise<ActiveAppInfoResponse> {
+  async pressButton(buttonName: 'home' | 'volumeUp' | 'volumeDown'): Promise<NullResponse> {
     await this.requiresSession()
     return this.client.post(`/session/${this.currentSessionId}/wda/pressButton`, {
       name: buttonName,

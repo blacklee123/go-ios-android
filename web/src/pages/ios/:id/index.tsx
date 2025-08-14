@@ -37,7 +37,7 @@ const Ios: React.FC = () => {
       <Divider />
       <Splitter onResize={setSplitterSizes} layout={splitterLayout}>
         <Splitter.Panel size={splitterSizes[0]} min="20%" max="50%" className="p-2">
-          <LeftPanel udid={udid} />
+          <LeftPanel udid={udid} driver={driver} />
         </Splitter.Panel>
         <Splitter.Panel size={splitterSizes[1]} className="p-2">
           <RightPanel udid={udid} driver={driver} tabKey={tabKey} setTabKey={setTabKey} />

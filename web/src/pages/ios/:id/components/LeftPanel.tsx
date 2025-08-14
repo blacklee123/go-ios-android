@@ -1,16 +1,24 @@
+import type { WebDriverAgentClient } from '@go-ios-android/wda'
 import { InfoCircleOutlined } from '@ant-design/icons'
-import { Button, Card, Flex, Space } from 'antd'
-import React, { useRef, useState } from 'react' // 添加 useState 和 useRef
+import { useRequest } from 'ahooks'
+import { Button, Card, Flex, Space, Spin } from 'antd'
+import React, { useRef } from 'react' // 添加 useState 和 useRef
 
 interface LeftPanelProps {
   udid: string
+  driver: WebDriverAgentClient
 }
 
-const LeftPanel: React.FC<LeftPanelProps> = ({ udid }) => {
+const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver }) => {
+  let loop = null
+  let time = 0
+  let moveX = 0
+  let moveY = 0
+  let isLongPress = false
+
+  const { data: windowSize, loading: windowSizeLoading } = useRequest(() => driver.windowSize())
   // 使用 ref 获取图片元素
   const imgRef = useRef<HTMLImageElement>(null)
-  // 跟踪鼠标按下状态
-  const [isMouseDown, setIsMouseDown] = useState(false)
 
   // 计算设备坐标
   const calculateDeviceCoordinates = (event: React.MouseEvent) => {
@@ -22,8 +30,8 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ udid }) => {
     const rect = img.getBoundingClientRect()
 
     // 计算缩放比例
-    const scaleX = img.naturalWidth / rect.width
-    const scaleY = img.naturalHeight / rect.height
+    const scaleX = windowSize!.value.width / rect.width
+    const scaleY = windowSize!.value.height / rect.height
 
     // 计算相对于图片的坐标
     const x = (event.clientX - rect.left) * scaleX
@@ -33,60 +41,69 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ udid }) => {
   }
 
   // 鼠标按下事件
-  const _onMouseDown = (event: React.MouseEvent) => {
-    setIsMouseDown(true)
+  const _onMouseDown = async (event: React.MouseEvent) => {
     const { x, y } = calculateDeviceCoordinates(event)
-    console.log('mousedown', { x, y })
-    // 这里添加发送操作到设备的代码
+    moveX = x
+    moveY = y
+    clearInterval(loop)
+    loop = setInterval(() => {
+      time += 500
+      if (time >= 1000 && isLongPress === false) {
+        console.log('longPress', x, y)
+        driver.longPress(x, y)
+        isLongPress = true
+      }
+    }, 500)
   }
 
   // 鼠标释放事件
   const _onMouseUp = (event: React.MouseEvent) => {
-    setIsMouseDown(false)
+    clearInterval(loop)
+    time = 0
     const { x, y } = calculateDeviceCoordinates(event)
-    console.log('mouseup', { x, y })
-    // 这里添加发送操作到设备的代码
-  }
-
-  // 鼠标移动事件
-  const _onMouseMove = (event: React.MouseEvent) => {
-    if (!isMouseDown)
-      return
-
-    const { x, y } = calculateDeviceCoordinates(event)
-    console.log('mousemove', { x, y })
-    // 这里添加发送操作到设备的代码（如拖动操作）
+    if (moveX === x && moveY === y) {
+      if (!isLongPress) {
+        console.log('tap', x, y)
+        driver.tap(x, y)
+      }
+    }
+    else {
+      console.log('swipe', moveX, moveY, x, y)
+      driver.swipe(moveX, moveY, x, y)
+    }
+    isLongPress = false
   }
 
   // 鼠标离开事件
   const _onMouseLeave = () => {
-    setIsMouseDown(false)
-    console.log('mouseleave')
+    clearInterval(loop)
+    isLongPress = false
   }
 
   return (
     <Card title="设备控制" extra={<InfoCircleOutlined />}>
-      <Flex>
-        <Flex vertical>
-          <img
-            ref={imgRef} // 添加 ref 引用
-            className="object-contain max-h-full mx-auto cursor-pointer" // 添加指针样式
-            alt="设备屏幕"
-            src={`/api/ios/${udid}/wdavideo/`}
-            // 绑定事件处理器
-            onMouseDown={_onMouseDown}
-            onMouseUp={_onMouseUp}
-            onMouseMove={_onMouseMove}
-            onMouseLeave={_onMouseLeave}
-          />
-          <Button>按钮</Button>
+      <Spin spinning={windowSizeLoading}>
+        <Flex>
+          <Flex vertical>
+            <img
+              ref={imgRef} // 添加 ref 引用
+              className="object-contain max-h-full mx-auto cursor-pointer" // 添加指针样式
+              alt="设备屏幕"
+              src={`/api/ios/${udid}/wdavideo/`}
+              // 绑定事件处理器
+              onMouseDown={_onMouseDown}
+              onMouseUp={_onMouseUp}
+              onMouseLeave={_onMouseLeave}
+            />
+            <Button>按钮</Button>
+          </Flex>
+          <Space direction="vertical">
+            <Button icon={<InfoCircleOutlined />} />
+            <Button icon={<InfoCircleOutlined />} />
+            <Button icon={<InfoCircleOutlined />} />
+          </Space>
         </Flex>
-        <Space direction="vertical">
-          <Button icon={<InfoCircleOutlined />} />
-          <Button icon={<InfoCircleOutlined />} />
-          <Button icon={<InfoCircleOutlined />} />
-        </Space>
-      </Flex>
+      </Spin>
     </Card>
   )
 }

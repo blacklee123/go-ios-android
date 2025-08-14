@@ -7,6 +7,7 @@ import type {
   SessionResponse,
   SetPasteboardResponse,
   StatusResponse,
+  WindowSizeResponse,
 } from './types'
 import axios from 'axios'
 import { Base64 } from 'js-base64'
@@ -204,7 +205,7 @@ export class WebDriverAgentClient {
     return this.actions([action])
   }
 
-  async swipe(fromX: number, fromY: number, toX: number, toY: number): Promise<ActiveAppInfoResponse> {
+  async swipe(fromX: number, fromY: number, toX: number, toY: number, moveDuration: number = 300): Promise<ActiveAppInfoResponse> {
     const action: Action = {
       id: 'finger-0',
       type: 'pointer',
@@ -214,26 +215,17 @@ export class WebDriverAgentClient {
           type: 'pointerMove',
           x: fromX,
           y: fromY,
+          duration: 100,
         },
-        {
-          type: 'pointerDown',
-        },
-        {
-          type: 'pause',
-          duration: 300,
-        },
+        { type: 'pointerDown' },
+        { type: 'pause', duration: 300 },
         {
           type: 'pointerMove',
           x: toX,
           y: toY,
+          duration: moveDuration,
         },
-        {
-          type: 'pause',
-          duration: 10,
-        },
-        {
-          type: 'pointerUp',
-        },
+        { type: 'pointerUp' },
       ],
     }
     return this.actions([action])
@@ -267,5 +259,10 @@ export class WebDriverAgentClient {
   async unlock(): Promise<ActiveAppInfoResponse> {
     await this.requiresSession()
     return this.client.post(`/session/${this.currentSessionId}/wda/unlock`)
+  }
+
+  async windowSize(): Promise<WindowSizeResponse> {
+    await this.requiresSession()
+    return this.client.get(`/session/${this.currentSessionId}/window/size`)
   }
 }

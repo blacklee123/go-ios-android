@@ -61,3 +61,8 @@ export interface TouchAction {
   x?: number
   y?: number
 }
+
+export interface WindowSizeResponse extends WdaResponse<{
+  width: number
+  height: number
+}> {}

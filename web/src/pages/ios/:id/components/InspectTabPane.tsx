@@ -4,7 +4,7 @@ import type { SelectProps, TreeProps } from 'antd'
 import type { ElementDetail, ElementNode } from '@/utils'
 import { useRequest } from 'ahooks'
 import { Col, Form, Input, Row, Select, Space, Spin, Tree } from 'antd'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { parseWDAXml } from '@/utils'
 
 interface TreeNode {
@@ -32,27 +32,21 @@ interface InspectTabPaneProps {
 }
 
 const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSize }) => {
-  const imgRef = useRef<HTMLImageElement>(null)
-  // const setImgData = () => {
-  //   const img = new Image()
-  //   img.src = `/api/ios/${udid}/screenshot`
-  //   const canvas = document.getElementById('debugPicIOS')
-  //   img.onload = function () {
-  //     canvas.width = img.width
-  //     canvas.height = img.height
-  //   }
-  // }
-
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imgCacheRef = useRef<HTMLImageElement | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [form] = Form.useForm()
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const [selectedNode, setSelectedNode] = useState<TreeNode | undefined>(undefined)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+  const [screenshotLoading, setScreenshotLoading] = useState(false)
+  const [pixelRatio, setPixelRatio] = useState<number>(1)
+
   const { data: rawData = [], runAsync: runWda, loading } = useRequest(
     async () => {
       const res = await driver.source()
       const parsedData = parseWDAXml(res.value)
       const treeData = convertToTreeData(parsedData || [])
-      // setImgData()
       return treeData
     },
     {
@@ -60,29 +54,127 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
     },
   )
 
+  // 高亮选中的元素
+  const highlightElement = (node: TreeNode) => {
+    if (!canvasRef.current || !windowSize || !imgCacheRef.current || !pixelRatio)
+      return
+
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx || !node.detail)
+      return
+
+    // 清除画布
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    // 重新绘制截图
+    ctx.drawImage(imgCacheRef.current, 0, 0, canvas.width, canvas.height)
+
+    // 获取元素坐标（逻辑像素）
+    const x = Number.parseInt(node.detail.x)
+    const y = Number.parseInt(node.detail.y)
+    const width = Number.parseInt(node.detail.width)
+    const height = Number.parseInt(node.detail.height)
+
+    // 转换为物理像素坐标
+    const physicalX = x * pixelRatio
+    const physicalY = y * pixelRatio
+    const physicalWidth = width * pixelRatio
+    const physicalHeight = height * pixelRatio
+
+    // 绘制高亮框
+    ctx.strokeStyle = '#1890ff'
+    ctx.lineWidth = 2
+    ctx.strokeRect(physicalX, physicalY, physicalWidth, physicalHeight)
+
+    // 绘制半透明填充
+    ctx.fillStyle = 'rgba(24, 144, 255, 0.3)'
+    ctx.fillRect(physicalX, physicalY, physicalWidth, physicalHeight)
+  }
+
+  // 加载截图到Canvas
+  const loadScreenshot = async () => {
+    if (!canvasRef.current || !windowSize)
+      return
+
+    setScreenshotLoading(true)
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx)
+      return
+
+    // 创建临时图片加载截图
+    const img = new Image()
+    img.crossOrigin = 'Anonymous'
+    img.src = `/api/ios/${udid}/screenshot?t=${Date.now()}` // 添加时间戳避免缓存
+
+    img.onload = () => {
+      // 计算设备像素比
+      const calculatedRatio = img.width / windowSize.value.width
+      setPixelRatio(calculatedRatio)
+
+      // 缓存图片用于重绘
+      imgCacheRef.current = img
+
+      // 设置Canvas内部绘制尺寸匹配图片
+      canvas.width = img.width
+      canvas.height = img.height
+
+      // 绘制截图
+      ctx.drawImage(img, 0, 0, img.width, img.height)
+      setScreenshotLoading(false)
+
+      // 如果有选中的节点，绘制高亮
+      if (selectedNode) {
+        highlightElement(selectedNode)
+      }
+    }
+
+    img.onerror = () => {
+      setScreenshotLoading(false)
+      console.error('Failed to load screenshot')
+    }
+  }
+
+  // 当选中节点变化时更新高亮
+  useEffect(() => {
+    if (selectedNode && imgCacheRef.current && pixelRatio) {
+      highlightElement(selectedNode)
+    }
+  }, [selectedNode, pixelRatio])
+
+  // 当选择应用时加载截图
+  useEffect(() => {
+    if (selected) {
+      loadScreenshot()
+    }
+  }, [selected])
+
   const onChange: SelectProps['onChange'] = async (value) => {
     setSelected(value)
     await runWda()
   }
 
   const onSelect: TreeProps['onSelect'] = async (selectedKeys, info) => {
-    console.log('selected', info.node)
-    setSelectedNode(info.node)
-    setSelectedKeys(selectedKeys)
-    form.setFieldsValue(info.node.detail)
+    setSelectedNode(info.node as TreeNode)
+    setSelectedKeys(selectedKeys as string[])
+    form.setFieldsValue((info.node as TreeNode).detail)
   }
 
   const calculateDeviceCoordinates = (event: React.MouseEvent) => {
-    if (!imgRef.current)
+    if (!canvasRef.current || !windowSize || !pixelRatio || !containerRef.current)
       return { x: 0, y: 0 }
 
-    const img = imgRef.current
-    const rect = img.getBoundingClientRect()
-    const scaleX = windowSize!.value.width / rect.width
-    const scaleY = windowSize!.value.height / rect.height
+    const container = containerRef.current
+    const rect = container.getBoundingClientRect()
 
-    const x = (event.clientX - rect.left) * scaleX
-    const y = (event.clientY - rect.top) * scaleY
+    // 计算鼠标在容器上的相对位置（0-1范围）
+    const relativeX = (event.clientX - rect.left) / rect.width
+    const relativeY = (event.clientY - rect.top) / rect.height
+
+    // 转换为设备逻辑坐标
+    const x = relativeX * windowSize.value.width
+    const y = relativeY * windowSize.value.height
 
     return { x, y }
   }
@@ -123,43 +215,28 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
         result = data[i]
       }
     }
-    // setExpandedKeys([result.ele.id])
     return result.ele
   }
 
-  const print = (data: TreeNode) => {
-    const canvas = document.getElementById('debugPicIOS')
-    const g = canvas.getContext('2d')
-    g.clearRect(0, 0, canvas.width, canvas.height)
-    const eleStartX = Number.parseInt(data.detail.x)
-    const eleStartY = Number.parseInt(data.detail.y)
-    const eleEndX = Number.parseInt(data.detail.x) + Number.parseInt(data.detail.width)
-    const eleEndY = Number.parseInt(data.detail.y) + Number.parseInt(data.detail.height)
-    const a = Math.round(Math.random() * 255)
-    const b = Math.round(Math.random() * 255)
-    const c = Math.round(Math.random() * 255)
-    g.fillStyle = `rgba(${a}, ${b}, ${c}, 0.6)`
-    g.fillRect(
-      eleStartX * (canvas.width / windowSize!.value.width),
-      eleStartY * (canvas.height / windowSize!.value.height),
-      (eleEndX - eleStartX) * (canvas.width / windowSize!.value.width),
-      (eleEndY - eleStartY) * (canvas.height / windowSize!.value.height),
-    )
-  }
+  const handleCanvasClick = async (event: React.MouseEvent) => {
+    if (!windowSize || !canvasRef.current)
+      return
 
-  const touchstart = async (event: React.MouseEvent) => {
     const { x, y } = calculateDeviceCoordinates(event)
-    console.log('xy', x, y)
     const elements = findElementByPoint(rawData, x, y)
-    console.log('elements', elements)
-    const res = findMinSize(elements)
-    if (res) {
-      setSelectedKeys([res.key])
-      setSelectedNode(res)
-      console.log(res)
-      print(res)
+    const target = findMinSize(elements)
+
+    if (target) {
+      setSelectedKeys([target.key])
+      setSelectedNode(target)
+      form.setFieldsValue(target.detail)
     }
   }
+
+  // 计算宽高比
+  const aspectRatio = windowSize
+    ? windowSize.value.height / windowSize.value.width
+    : 0
 
   return (
     <Space className="w-full" direction="vertical">
@@ -178,21 +255,39 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
         && (
           <Row gutter={[24, 24]}>
             <Col span={7}>
-              <img
-                ref={imgRef}
-                draggable={false}
-                onMouseDown={touchstart}
-                src={`/api/ios/${udid}/screenshot`}
-              />
-              {/* <canvas
-                id="debugPicIOS"
-              >
-              </canvas> */}
+              <Spin spinning={screenshotLoading}>
+                <div
+                  ref={containerRef}
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    paddingBottom: `${aspectRatio * 100}%`, // 保持宽高比的关键
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    backgroundColor: '#f0f0f0',
+                  }}
+                >
+                  <canvas
+                    ref={canvasRef}
+                    onMouseDown={handleCanvasClick}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      cursor: 'pointer',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+              </Spin>
             </Col>
             <Col span={9}>
               <Spin spinning={loading}>
                 {
-                  rawData.length && (
+                  rawData.length > 0 && (
                     <Tree
                       treeData={rawData}
                       onSelect={onSelect}
@@ -203,7 +298,6 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
                     </Tree>
                   )
                 }
-
               </Spin>
             </Col>
             <Col span={8}>
@@ -246,11 +340,9 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
                   </Form>
                 )
               }
-
             </Col>
           </Row>
         )}
-
     </Space>
   )
 }

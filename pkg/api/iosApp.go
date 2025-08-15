@@ -304,3 +304,24 @@ func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil || os.IsExist(err)
 }
+
+func (s *Server) hListProcess(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	service, err := instruments.NewDeviceInfoService(device)
+	if err != nil {
+		s.logger.Error("failed opening deviceInfoService for getting process list")
+		c.JSON(http.StatusInternalServerError, GenericResponse{
+			Error: "failed opening deviceInfoService",
+		})
+		return
+	}
+	defer service.Close()
+	processList, err := service.ProcessList()
+	if err != nil {
+		s.logger.Error("failed getting process list")
+		c.JSON(http.StatusInternalServerError, GenericResponse{
+			Error: "failed getting process list",
+		})
+	}
+	c.JSON(http.StatusOK, processList)
+}

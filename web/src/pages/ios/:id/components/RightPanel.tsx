@@ -4,6 +4,8 @@ import { Tabs } from 'antd'
 import React from 'react'
 import { AppTabPane } from './AppTabPane'
 import { ControllTabPane } from './ControllTabPane'
+import { ProcessTabPane } from './ProcessTabPane'
+import { ScreenshotTabPane } from './ScreenshotTabPane'
 import { SyslogTabPane } from './SyslogTabPane'
 
 interface RightPanelProps {
@@ -26,18 +28,34 @@ const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey
       children: <AppTabPane udid={udid} />,
     },
     {
+      key: 'processes',
+      label: '进程',
+      children: <ProcessTabPane udid={udid} />,
+    },
+    {
       key: 'syslog',
-      label: '系统日志',
+      label: '日志',
       children: <SyslogTabPane udid={udid} />,
     },
     {
-      key: '3',
-      label: 'Tab 3',
-      children: 'Content of Tab Pane 3',
+      key: 'screenshot',
+      label: '截图',
+      children: <ScreenshotTabPane udid={udid} />,
+    },
+    {
+      key: 'inspect',
+      label: '控件',
+      children: <ScreenshotTabPane udid={udid} />,
     },
   ]
   return (
-    <Tabs items={items} activeKey={tabKey} onChange={setTabKey} destroyOnHidden />
+    <Tabs
+      type="card"
+      items={items}
+      activeKey={tabKey}
+      onChange={setTabKey}
+      destroyOnHidden
+    />
   )
 }
 

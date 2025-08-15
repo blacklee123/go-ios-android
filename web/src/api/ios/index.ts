@@ -1,4 +1,5 @@
 export * from './apps'
 export * from './device'
 export * from './location'
+export * from './processes'
 export * from './types'

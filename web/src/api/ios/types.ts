@@ -20,3 +20,11 @@ export interface App {
   CFBundleVersion: string
   Icon: string
 }
+
+export interface Process {
+  IsApplication: boolean
+  Name: string
+  Pid: number
+  RealAppName: string
+  StartDate: string
+}

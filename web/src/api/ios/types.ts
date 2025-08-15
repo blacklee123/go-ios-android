@@ -14,5 +14,9 @@ export interface Device {
 }
 
 export interface App {
-
+  CFBundleIdentifier: string
+  CFBundleName: string
+  CFBundleShortVersionString: string
+  CFBundleVersion: string
+  Icon: string
 }

@@ -1,5 +1,5 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
-import { HomeOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { HomeOutlined, InfoCircleOutlined, PoweroffOutlined } from '@ant-design/icons'
 import { useRequest } from 'ahooks'
 import { Button, Card, Flex, Space, Spin } from 'antd'
 import React, { useRef } from 'react'
@@ -120,6 +120,16 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver }) => {
     await driver.pressButton('home')
   }
 
+  async function onPower() {
+    const locked = await driver.locked()
+    if (locked.value) {
+      await driver.unlock()
+    }
+    else {
+      await driver.lock()
+    }
+  }
+
   return (
     <Card title="设备控制" extra={<InfoCircleOutlined />}>
       <Spin spinning={windowSizeLoading}>
@@ -138,11 +148,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver }) => {
             />
             <Button block icon={<HomeOutlined />} onClick={pressHome}></Button>
           </Flex>
-          <Space direction="vertical">
+          <Space.Compact direction="vertical">
             <Button icon={<InfoCircleOutlined />} />
             <Button icon={<InfoCircleOutlined />} />
             <Button icon={<InfoCircleOutlined />} />
-          </Space>
+            <Button icon={<PoweroffOutlined />} onClick={onPower} />
+          </Space.Compact>
         </Flex>
       </Spin>
     </Card>

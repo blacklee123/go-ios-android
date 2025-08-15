@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/springboard"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -33,6 +35,32 @@ func (s *Server) hListApp(c *gin.Context) {
 			"CFBundleIdentifier":         app.CFBundleIdentifier(),
 			"CFBundleName":               app.CFBundleName(),
 			"CFBundleShortVersionString": app.CFBundleShortVersionString(),
+		})
+	}
+	c.JSON(http.StatusOK, ret)
+}
+
+func (s *Server) hListAppWithIcon(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	svc, _ := installationproxy.New(device)
+	response, err := svc.BrowseUserApps()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed getting process list",
+		})
+		return
+	}
+	ret := make([]map[string]interface{}, 0, len(response))
+	client, _ := springboard.NewClient(device)
+	defer client.Close()
+	for _, app := range response {
+		icon, _ := client.GetIconPNGData(app.CFBundleIdentifier())
+		ret = append(ret, map[string]interface{}{
+			"CFBundleIdentifier":         app.CFBundleIdentifier(),
+			"CFBundleName":               app.CFBundleName(),
+			"CFBundleShortVersionString": app.CFBundleShortVersionString(),
+			"CFBundleVersion":            app["CFBundleVersion"],
+			"Icon":                       base64.StdEncoding.EncodeToString(icon),
 		})
 	}
 	c.JSON(http.StatusOK, ret)

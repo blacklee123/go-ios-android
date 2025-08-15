@@ -88,6 +88,7 @@ func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice.Use(s.DeviceMiddleware())
 	iosDevice.GET("", s.hRetrieveIOS)
 	iosDevice.GET("/apps", s.hListApp)
+	iosDevice.GET("/apps_with_icon", s.hListAppWithIcon)
 	iosDevice.POST("/apps", s.hInstallApp)
 	iosDevice.GET("/screenshot", s.hScreenshot)
 	iosDevice.GET("fsync/list/*filepath", s.hListFiles)

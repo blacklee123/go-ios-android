@@ -1,7 +1,7 @@
 import type { ColumnsType } from 'antd/es/table'
 import type { App } from '@/api/ios'
 import { useRequest } from 'ahooks'
-import { Button, Space, Table } from 'antd'
+import { Avatar, Button, Space, Table } from 'antd'
 import React from 'react'
 import { launchApp, listApp } from '@/api/ios'
 
@@ -12,6 +12,12 @@ interface AppTabPaneProps {
 const AppTabPane: React.FC<AppTabPaneProps> = ({ udid }) => {
   const { data: apps, loading } = useRequest(() => listApp(udid))
   const columns: ColumnsType<App> = [
+    {
+      title: 'Icon',
+      dataIndex: 'Icon',
+      key: 'Icon',
+      render: (_, record) => <Avatar src={`data:image/png;base64,${record.Icon}`} />,
+    },
     {
       title: 'CFBundleIdentifier',
       dataIndex: 'CFBundleIdentifier',
@@ -26,6 +32,11 @@ const AppTabPane: React.FC<AppTabPaneProps> = ({ udid }) => {
       title: 'CFBundleShortVersionString',
       dataIndex: 'CFBundleShortVersionString',
       key: 'CFBundleShortVersionString',
+    },
+    {
+      title: 'CFBundleVersion',
+      dataIndex: 'CFBundleVersion',
+      key: 'CFBundleVersion',
     },
     {
       title: '操作',

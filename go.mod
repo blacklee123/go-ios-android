@@ -78,5 +78,5 @@ require (
 
 replace (
 	github.com/blacklee123/go-adb => ../go-adb
-	github.com/danielpaulus/go-ios v1.0.182 => github.com/blacklee123/go-ios v0.0.0-20250801013210-29508abd35ea
+	github.com/danielpaulus/go-ios v1.0.182 => github.com/blacklee123/go-ios v0.0.0-20250815004300-937dd823f72c
 )

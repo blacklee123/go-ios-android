@@ -2,7 +2,7 @@ import type { App } from './types'
 import { axiosInstance } from '../index'
 
 export function listApp(udid: string): Promise<App[]> {
-  return axiosInstance.get(`/ios/${udid}/apps`)
+  return axiosInstance.get(`/ios/${udid}/apps_with_icon`)
 }
 
 export function launchApp(udid: string, bundleId: string): Promise<App[]> {

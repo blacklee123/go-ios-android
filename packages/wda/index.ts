@@ -3,6 +3,7 @@ import type {
   Action,
   ActivateSiriResponse,
   ActiveAppInfoResponse,
+  BooleanResponse,
   GetPasteboardResponse,
   NullResponse,
   SessionResponse,
@@ -271,17 +272,17 @@ export class WebDriverAgentClient {
     })
   }
 
-  async locked(): Promise<ActiveAppInfoResponse> {
+  async locked(): Promise<BooleanResponse> {
     await this.requiresSession()
     return this.client.get(`/session/${this.currentSessionId}/wda/locked`)
   }
 
-  async lock(): Promise<ActiveAppInfoResponse> {
+  async lock(): Promise<NullResponse> {
     await this.requiresSession()
     return this.client.post(`/session/${this.currentSessionId}/wda/lock`)
   }
 
-  async unlock(): Promise<ActiveAppInfoResponse> {
+  async unlock(): Promise<NullResponse> {
     await this.requiresSession()
     return this.client.post(`/session/${this.currentSessionId}/wda/unlock`)
   }

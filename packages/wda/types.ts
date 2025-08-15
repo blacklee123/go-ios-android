@@ -42,6 +42,7 @@ export interface ActiveAppInfoResponse extends WdaResponse<{
 }> {}
 
 export interface NullResponse extends WdaResponse<null> {}
+export interface BooleanResponse extends WdaResponse<boolean> {}
 
 export interface GetPasteboardResponse extends WdaResponse<string> {}
 

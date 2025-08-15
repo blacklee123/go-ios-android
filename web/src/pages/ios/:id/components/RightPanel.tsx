@@ -1,9 +1,11 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
+import type { WindowSizeResponse } from '@go-ios-android/wda/types'
 import type { TabsProps } from 'antd'
 import { Tabs } from 'antd'
 import React from 'react'
 import { AppTabPane } from './AppTabPane'
 import { ControllTabPane } from './ControllTabPane'
+import { InspectTabPane } from './InspectTabPane'
 import { ProcessTabPane } from './ProcessTabPane'
 import { ScreenshotTabPane } from './ScreenshotTabPane'
 import { SyslogTabPane } from './SyslogTabPane'
@@ -13,9 +15,10 @@ interface RightPanelProps {
   driver: WebDriverAgentClient
   tabKey: string
   setTabKey: (key: string) => void
+  windowSize: WindowSizeResponse | undefined
 }
 
-const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey }) => {
+const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey, windowSize }) => {
   const items: TabsProps['items'] = [
     {
       key: 'controll',
@@ -45,7 +48,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey
     {
       key: 'inspect',
       label: '控件',
-      children: <ScreenshotTabPane udid={udid} />,
+      children: <InspectTabPane udid={udid} driver={driver} windowSize={windowSize} />,
     },
   ]
   return (

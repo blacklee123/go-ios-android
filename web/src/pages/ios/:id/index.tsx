@@ -1,7 +1,8 @@
 import { ArrowLeftOutlined, SwapOutlined } from '@ant-design/icons'
 import { WebDriverAgentClient } from '@go-ios-android/wda'
-import { Divider, Flex, Space, Splitter } from 'antd'
+import { useRequest } from 'ahooks'
 
+import { Divider, Flex, Space, Splitter } from 'antd'
 import React from 'react'
 import { Link, useParams } from 'react-router'
 import { LeftPanel } from './components/LeftPanel'
@@ -13,6 +14,7 @@ const Ios: React.FC = () => {
   const udid = params.udid
   const { splitterSizes, setSplitterSizes, splitterLayout, switchSplitterLayout, tabKey, setTabKey } = useIos()
   const driver = new WebDriverAgentClient(`/api/ios/${udid}/wda`)
+  const { data: windowSize, loading: windowSizeLoading } = useRequest(() => driver.windowSize())
 
   return (
     <Flex vertical className="p-2">
@@ -37,10 +39,10 @@ const Ios: React.FC = () => {
       <Divider />
       <Splitter onResize={setSplitterSizes} layout={splitterLayout}>
         <Splitter.Panel size={splitterSizes[0]} min="20%" max="50%" className="p-2">
-          <LeftPanel udid={udid} driver={driver} />
+          <LeftPanel udid={udid} driver={driver} windowSize={windowSize} windowSizeLoading={windowSizeLoading} />
         </Splitter.Panel>
         <Splitter.Panel size={splitterSizes[1]} className="p-2">
-          <RightPanel udid={udid} driver={driver} tabKey={tabKey} setTabKey={setTabKey} />
+          <RightPanel udid={udid} driver={driver} tabKey={tabKey} setTabKey={setTabKey} windowSize={windowSize} />
         </Splitter.Panel>
       </Splitter>
     </Flex>

@@ -1,18 +1,19 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
+import type { WindowSizeResponse } from '@go-ios-android/wda/types'
 import { HomeOutlined, InfoCircleOutlined, PoweroffOutlined } from '@ant-design/icons'
-import { useRequest } from 'ahooks'
 import { Button, Card, Flex, Space, Spin } from 'antd'
 import React, { useRef } from 'react'
 
 interface LeftPanelProps {
   udid: string
   driver: WebDriverAgentClient
+  windowSize: WindowSizeResponse | undefined
+  windowSizeLoading: boolean
 }
 
 const MOVE_THRESHOLD = 5 // 滑动阈值（设备像素）
 
-const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver }) => {
-  const { data: windowSize, loading: windowSizeLoading } = useRequest(() => driver.windowSize())
+const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver, windowSize, windowSizeLoading }) => {
   const imgRef = useRef<HTMLImageElement>(null)
 
   // 使用ref存储状态

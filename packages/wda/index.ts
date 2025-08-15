@@ -8,6 +8,7 @@ import type {
   NullResponse,
   SessionResponse,
   StatusResponse,
+  StringResponse,
   WindowSizeResponse,
 } from './types'
 import axios from 'axios'
@@ -290,5 +291,10 @@ export class WebDriverAgentClient {
   async windowSize(): Promise<WindowSizeResponse> {
     await this.requiresSession()
     return this.client.get(`/session/${this.currentSessionId}/window/size`)
+  }
+
+  async source(): Promise<StringResponse> {
+    await this.requiresSession()
+    return this.client.get(`/session/${this.currentSessionId}/source`)
   }
 }

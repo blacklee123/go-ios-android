@@ -18,6 +18,7 @@ export interface App {
   CFBundleName: string
   CFBundleShortVersionString: string
   CFBundleVersion: string
+  ExecutableName: string
   Icon: string
 }
 

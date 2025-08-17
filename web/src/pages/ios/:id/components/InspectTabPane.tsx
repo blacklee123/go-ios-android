@@ -39,6 +39,7 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const [selectedNode, setSelectedNode] = useState<TreeNode | undefined>(undefined)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]) // 添加展开状态
   const [screenshotLoading, setScreenshotLoading] = useState(false)
   const [pixelRatio, setPixelRatio] = useState<number>(1)
 
@@ -47,6 +48,7 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
       const res = await driver.source()
       const parsedData = parseWDAXml(res.value)
       const treeData = convertToTreeData(parsedData || [])
+      setExpandedKeys([treeData[0].key])
       return treeData
     },
     {
@@ -161,6 +163,11 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
     form.setFieldsValue((info.node as TreeNode).detail)
   }
 
+  // 处理树形控件的展开/折叠事件
+  const onExpand: TreeProps['onExpand'] = (expandedKeys) => {
+    setExpandedKeys(expandedKeys as string[])
+  }
+
   const calculateDeviceCoordinates = (event: React.MouseEvent) => {
     if (!canvasRef.current || !windowSize || !pixelRatio || !containerRef.current)
       return { x: 0, y: 0 }
@@ -218,8 +225,32 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
     return result.ele
   }
 
+  // 查找节点的所有父节点key（用于展开树）
+  const findParentKeys = (node: TreeNode, treeData: TreeNode[]): string[] => {
+    const keys: string[] = []
+
+    function findPath(currentNode: TreeNode, path: string[], data: TreeNode[]): boolean {
+      for (const item of data) {
+        const newPath = [...path, item.key]
+        if (item.key === currentNode.key) {
+          keys.push(...newPath)
+          return true
+        }
+        if (item.children && item.children.length > 0) {
+          const found = findPath(currentNode, newPath, item.children)
+          if (found)
+            return true
+        }
+      }
+      return false
+    }
+
+    findPath(node, [], treeData)
+    return keys
+  }
+
   const handleCanvasClick = async (event: React.MouseEvent) => {
-    if (!windowSize || !canvasRef.current)
+    if (!windowSize || !canvasRef.current || !rawData.length)
       return
 
     const { x, y } = calculateDeviceCoordinates(event)
@@ -230,6 +261,10 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
       setSelectedKeys([target.key])
       setSelectedNode(target)
       form.setFieldsValue(target.detail)
+
+      // 查找并展开所有父节点
+      const parentKeys = findParentKeys(target, rawData)
+      setExpandedKeys(prev => [...new Set([...prev, ...parentKeys])])
     }
   }
 
@@ -261,7 +296,7 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
                   style={{
                     position: 'relative',
                     width: '100%',
-                    paddingBottom: `${aspectRatio * 100}%`, // 保持宽高比的关键
+                    paddingBottom: `${aspectRatio * 100}%`,
                     border: '1px solid #d9d9d9',
                     borderRadius: '4px',
                     overflow: 'hidden',
@@ -291,8 +326,9 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
                     <Tree
                       treeData={rawData}
                       onSelect={onSelect}
+                      onExpand={onExpand} // 添加展开事件处理
+                      expandedKeys={expandedKeys} // 控制展开状态
                       height={648}
-                      defaultExpandedKeys={[rawData[0].key]}
                       selectedKeys={selectedKeys}
                     >
                     </Tree>

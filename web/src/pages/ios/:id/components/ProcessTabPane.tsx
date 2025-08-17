@@ -22,6 +22,7 @@ const ProcessTabPane: React.FC<ProcessTabPaneProps> = ({ udid }) => {
       title: 'Pid',
       dataIndex: 'Pid',
       key: 'Pid',
+      align: 'right',
     },
     {
       title: 'RealAppName',
@@ -32,6 +33,7 @@ const ProcessTabPane: React.FC<ProcessTabPaneProps> = ({ udid }) => {
       title: 'StartDate',
       dataIndex: 'StartDate',
       key: 'StartDate',
+      width: 180,
       render: (_, record) => formatDate(record.StartDate),
     },
   ]

@@ -60,6 +60,7 @@ func (s *Server) hListAppWithIcon(c *gin.Context) {
 			"CFBundleName":               app.CFBundleName(),
 			"CFBundleShortVersionString": app.CFBundleShortVersionString(),
 			"CFBundleVersion":            app["CFBundleVersion"],
+			"ExecutableName":             app["CFBundleExecutable"],
 			"Icon":                       base64.StdEncoding.EncodeToString(icon),
 		})
 	}

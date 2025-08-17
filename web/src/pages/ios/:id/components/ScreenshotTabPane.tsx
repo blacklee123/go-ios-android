@@ -29,7 +29,6 @@ const ScreenshotTabPane: React.FC<ScreenshotTabPaneProps> = ({ udid }) => {
       const blob = await response.blob()
       const imageUrl = URL.createObjectURL(blob)
       setScreenUrls(prev => [...prev, imageUrl])
-      message.success('截图成功')
     }
     catch (error) {
       console.error('截图请求失败:', error)

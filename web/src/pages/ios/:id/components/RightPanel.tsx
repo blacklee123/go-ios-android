@@ -6,6 +6,7 @@ import React from 'react'
 import { AppTabPane } from './AppTabPane'
 import { ControllTabPane } from './ControllTabPane'
 import { InspectTabPane } from './InspectTabPane'
+import { PerfTabPane } from './PerfTabPane'
 import { ProcessTabPane } from './ProcessTabPane'
 import { ScreenshotTabPane } from './ScreenshotTabPane'
 import { SyslogTabPane } from './SyslogTabPane'
@@ -50,10 +51,16 @@ const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey
       label: '控件',
       children: <InspectTabPane udid={udid} driver={driver} windowSize={windowSize} />,
     },
+    {
+      key: 'perf',
+      label: '性能',
+      children: <PerfTabPane udid={udid} driver={driver} windowSize={windowSize} />,
+    },
   ]
   return (
     <Tabs
-      type="card"
+      // type="card"
+      tabPosition="left"
       items={items}
       activeKey={tabKey}
       onChange={setTabKey}

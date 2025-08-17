@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -116,36 +115,42 @@ func (s *Server) runWdaCommand(device ios.DeviceEntry) {
 	}
 	videoTargetURL, _ := url.Parse(fmt.Sprintf("http://localhost:%d", videoHostPort))
 
-	client := &http.Client{
-		Timeout: 2 * time.Second, // 设置超时避免阻塞
-	}
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	s.wdaProxys[device.Properties.SerialNumber] = proxy
 
-	for {
-		resp, err := client.Get(targetURL.String() + "/status")
-		if err == nil && resp.StatusCode == http.StatusOK {
-			s.logger.Info("WDA running", zap.String("serial", device.Properties.SerialNumber))
-			// 确保响应体关闭
-			resp.Body.Close()
+	videoProxy := httputil.NewSingleHostReverseProxy(videoTargetURL)
+	s.wdaVideoProxys[device.Properties.SerialNumber] = videoProxy
 
-			// 创建反向代理并存储
-			proxy := httputil.NewSingleHostReverseProxy(targetURL)
-			s.wdaProxys[device.Properties.SerialNumber] = proxy
+	// client := &http.Client{
+	// 	Timeout: 2 * time.Second, // 设置超时避免阻塞
+	// }
 
-			videoProxy := httputil.NewSingleHostReverseProxy(videoTargetURL)
-			s.wdaVideoProxys[device.Properties.SerialNumber] = videoProxy
+	// for {
+	// 	resp, err := client.Get(targetURL.String() + "/status")
+	// 	if err == nil && resp.StatusCode == http.StatusOK {
+	// 		s.logger.Info("WDA running", zap.String("serial", device.Properties.SerialNumber))
+	// 		// 确保响应体关闭
+	// 		resp.Body.Close()
 
-			// 成功执行后退出循环
-			break
-		}
+	// 		// 创建反向代理并存储
+	// 		proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	// 		s.wdaProxys[device.Properties.SerialNumber] = proxy
 
-		// 如果请求失败，关闭可能打开的响应体
-		if resp != nil {
-			resp.Body.Close()
-		}
+	// 		videoProxy := httputil.NewSingleHostReverseProxy(videoTargetURL)
+	// 		s.wdaVideoProxys[device.Properties.SerialNumber] = videoProxy
 
-		// 添加延迟避免高频请求
-		time.Sleep(1 * time.Second)
-	}
+	// 		// 成功执行后退出循环
+	// 		break
+	// 	}
+
+	// 	// 如果请求失败，关闭可能打开的响应体
+	// 	if resp != nil {
+	// 		resp.Body.Close()
+	// 	}
+
+	// 	// 添加延迟避免高频请求
+	// 	time.Sleep(1 * time.Second)
+	// }
 
 	select {
 	case err := <-errorChannel:

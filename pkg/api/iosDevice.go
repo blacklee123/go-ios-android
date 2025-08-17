@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/danielpaulus/go-ios/ios/simlocation"
 	"github.com/danielpaulus/go-ios/ios/syslog"
@@ -113,6 +114,7 @@ func (s *Server) hScreenshot(c *gin.Context) {
 
 func (s *Server) hSyslog(c *gin.Context) {
 	// We are streaming current time to clients in the interval 10 seconds
+	filter := c.Query("filter")
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	syslogConnection, err := syslog.New(device)
 	if err != nil {
@@ -120,11 +122,22 @@ func (s *Server) hSyslog(c *gin.Context) {
 		return
 	}
 	c.Stream(func(w io.Writer) bool {
-		m, _ := syslogConnection.ReadLogMessage()
+		logMessage, err := syslogConnection.ReadLogMessage()
+		if err != nil {
+			s.logger.Error("failed reading log message", zap.Error(err))
+			return false
+		}
+		logMessage = strings.TrimSuffix(logMessage, "\x00")
+		logMessage = strings.TrimSuffix(logMessage, "\x0A")
 		// s.logger.Info("syslog", zap.String("message", m), zap.String("udid", device.Properties.SerialNumber))
 		// Stream message to client from message channel
 		// w.Write([]byte(utils.MustMarshal(m)))
-		c.SSEvent("message", m)
+		if filter != "" {
+			if !strings.Contains(logMessage, filter) {
+				return true
+			}
+		}
+		c.SSEvent("message", logMessage)
 		return true
 	})
 }

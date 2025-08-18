@@ -1,20 +1,11 @@
+import type { SystemMemData } from '@/api/ios/perfTypes'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import React, { useEffect, useRef } from 'react'
 import { echartsLineEmptyOptions } from '@/constants'
 
-interface MemoryData {
-  timestamp: number
-  app_memory: number
-  free_memory: number
-  cached_files: number
-  compressed: number
-  used_memory: number
-  wired_memory: number
-}
-
 interface SysMemChartProps {
-  data: MemoryData[]
+  data: SystemMemData[]
 }
 
 const SysMemChart: React.FC<SysMemChartProps> = ({ data }) => {
@@ -55,6 +46,7 @@ const SysMemChart: React.FC<SysMemChartProps> = ({ data }) => {
   useEffect(() => {
     if (!chartInstance.current)
       return
+    chartInstance.current.clear()
     if (data.length === 0) {
       chartInstance.current.setOption(echartsLineEmptyOptions)
       return
@@ -108,7 +100,7 @@ const SysMemChart: React.FC<SysMemChartProps> = ({ data }) => {
         { name: 'Wired Memory', type: 'line', data: data.map(obj => obj.wired_memory), showSymbol: false },
       ],
     }
-    chartInstance.current.setOption(option)
+    chartInstance.current.setOption(option, true)
   }, [data])
 
   return (

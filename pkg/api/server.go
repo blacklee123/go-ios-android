@@ -87,21 +87,31 @@ func (s *Server) registerIosHandlers(api *gin.RouterGroup) {
 	iosDevice := api.Group("/ios/:udid")
 	iosDevice.Use(s.DeviceMiddleware())
 	iosDevice.GET("", s.hRetrieveIOS)
+
 	iosDevice.GET("/apps", s.hListApp)
 	iosDevice.GET("/apps_with_icon", s.hListAppWithIcon)
 	iosDevice.POST("/apps", s.hInstallApp)
+
 	iosDevice.GET("/processes", s.hListProcess)
 	iosDevice.GET("/screenshot", s.hScreenshot)
+
 	iosDevice.GET("fsync/list/*filepath", s.hListFiles)
 	iosDevice.GET("fsync/pull/*filepath", s.hPullFile)
+
 	iosDevice.GET("/syslog", streamingMiddleWare, s.hSyslog)
+
 	iosDevice.GET("/forwards", s.hListForward)
 	iosDevice.GET("/forwards/:port", s.hRetrieveForward)
 	iosDevice.POST("/forwards", s.hCreateForward)
+
 	iosDevice.Any("/wda/*path", s.hWda)
 	iosDevice.Any("/wdavideo/*path", s.hWdaVideo)
+    
 	iosDevice.POST("/location", s.hSetLocation)
 	iosDevice.POST("/location/reset", s.hResetLocation)
+
+	iosDevice.GET("/perf/attributes", s.hListAttributes)
+	iosDevice.GET("/perf/sse", streamingMiddleWare, s.hPerf)
 
 	iosApp := iosDevice.Group("/apps/:bundleid")
 	iosApp.POST("/launch", s.hLaunchApp)

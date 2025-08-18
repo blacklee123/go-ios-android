@@ -13,7 +13,7 @@ const SyslogTabPane: React.FC<SyslogTabPaneProps> = ({ udid }) => {
   const [running, setRunning] = useState<boolean>(false)
   const [filter, setFilter] = useState<string>('')
   const [logs, setLogs] = useState<string[]>([])
-  const esRef = useRef<EventSource | null>(null) // 使用 ref 替代局部变量
+  const esRef = useRef<EventSource | null>(null)
 
   function handleSearch() {
     if (esRef.current) {

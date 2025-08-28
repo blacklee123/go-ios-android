@@ -21,11 +21,14 @@ import (
 
 func (s *Server) hListApp(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	svc, _ := installationproxy.New(device)
-	response, err := svc.BrowseUserApps()
+	appType := c.Query("type") // all | system | user | filesharingapps
+	if appType == "" {
+		appType = "user"
+	}
+	response, err := s.listApp(device, appType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed getting process list",
+		c.JSON(http.StatusInternalServerError, GenericResponse{
+			Error: "failed getting process list",
 		})
 		return
 	}
@@ -42,11 +45,14 @@ func (s *Server) hListApp(c *gin.Context) {
 
 func (s *Server) hListAppWithIcon(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	svc, _ := installationproxy.New(device)
-	response, err := svc.BrowseUserApps()
+	appType := c.Query("type") // all | system | user | filesharingapps
+	if appType == "" {
+		appType = "user"
+	}
+	response, err := s.listApp(device, appType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed getting process list",
+		c.JSON(http.StatusInternalServerError, GenericResponse{
+			Error: "failed getting process list",
 		})
 		return
 	}
@@ -65,6 +71,23 @@ func (s *Server) hListAppWithIcon(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, ret)
+}
+
+func (s *Server) listApp(device ios.DeviceEntry, appType string) ([]installationproxy.AppInfo, error) {
+	svc, _ := installationproxy.New(device)
+	var err error
+	var response []installationproxy.AppInfo
+	switch appType {
+	case "all":
+		response, err = svc.BrowseAllApps()
+	case "system":
+		response, err = svc.BrowseSystemApps()
+	case "user":
+		response, err = svc.BrowseUserApps()
+	case "filesharingapps":
+		response, err = svc.BrowseFileSharingApps()
+	}
+	return response, err
 }
 
 func (s *Server) hUninstallApp(c *gin.Context) {

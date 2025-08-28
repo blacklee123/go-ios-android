@@ -28,7 +28,6 @@ func (s *Server) hListFiles(c *gin.Context) {
 	if containerBundleId == "" {
 		afcService, err = afc.New(device)
 	} else {
-		cleanPath = filepath.Join("Documents", cleanPath)
 		afcService, err = afc.NewContainer(device, containerBundleId)
 	}
 	if err != nil {
@@ -40,7 +39,12 @@ func (s *Server) hListFiles(c *gin.Context) {
 	}
 	defer afcService.Close()
 
-	files, err := afcService.ListFiles(cleanPath, "*")
+	fileInfo, err := afcService.Stat(cleanPath)
+	if err != nil || !fileInfo.IsDir() {
+		c.JSON(http.StatusOK, []string{})
+		return
+	}
+	files, err := afcService.ListDir(cleanPath)
 
 	if err != nil {
 		s.logger.Error("fsync: failed to list files", zap.String("path", cleanPath), zap.Error(err))
@@ -49,9 +53,16 @@ func (s *Server) hListFiles(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": files,
-	})
+	for i := range files {
+		fileInfo, err := afcService.Stat(filepath.Join(cleanPath, files[i]))
+		if err != nil {
+			continue
+		}
+		if fileInfo.IsDir() {
+			files[i] = files[i] + "/"
+		}
+	}
+	c.JSON(http.StatusOK, files)
 }
 
 func (s *Server) hPullFile(c *gin.Context) {

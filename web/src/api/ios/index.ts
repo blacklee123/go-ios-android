@@ -1,5 +1,6 @@
 export * from './apps'
 export * from './device'
+export * from './fsync'
 export * from './location'
 export * from './processes'
 export * from './types'

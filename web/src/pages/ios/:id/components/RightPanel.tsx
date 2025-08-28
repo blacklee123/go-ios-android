@@ -1,10 +1,13 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
 import type { WindowSizeResponse } from '@go-ios-android/wda/types'
 import type { TabsProps } from 'antd'
+
 import { Tabs } from 'antd'
 import React from 'react'
+
 import { AppTabPane } from './AppTabPane'
 import { ControllTabPane } from './ControllTabPane'
+import { FileTabPane } from './FileTabPane'
 import { InspectTabPane } from './InspectTabPane'
 import { PerfTabPane } from './PerfTabPane'
 import { ProcessTabPane } from './ProcessTabPane'
@@ -40,6 +43,11 @@ const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey
       key: 'syslog',
       label: '日志',
       children: <SyslogTabPane udid={udid} />,
+    },
+    {
+      key: 'files',
+      label: '文件',
+      children: <FileTabPane udid={udid} />,
     },
     {
       key: 'screenshot',

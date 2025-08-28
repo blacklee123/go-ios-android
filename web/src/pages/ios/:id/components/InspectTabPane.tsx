@@ -154,6 +154,9 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
 
   const onChange: SelectProps['onChange'] = async (value) => {
     setSelected(value)
+    setSelectedNode(undefined)
+    setSelectedKeys([])
+    setExpandedKeys([])
     await runWda()
   }
 
@@ -280,10 +283,10 @@ const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSiz
         value={selected}
         onChange={onChange}
         options={[
-          { value: 'jack', label: 'Jack' },
-          { value: 'lucy', label: 'Lucy' },
-          { value: 'Yiminghe', label: 'yiminghe' },
-          { value: 'disabled', label: 'Disabled', disabled: true },
+          { value: 'Unity', label: 'Unity' },
+          { value: 'Unreal', label: 'Unreal' },
+          { value: 'Android', label: 'Android' },
+          { value: 'iOS', label: 'iOS' },
         ]}
       />
       { selected

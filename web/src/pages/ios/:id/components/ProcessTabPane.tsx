@@ -37,7 +37,7 @@ const ProcessTabPane: React.FC<ProcessTabPaneProps> = ({ udid }) => {
       render: (_, record) => formatDate(record.StartDate),
     },
   ]
-  return <Table dataSource={data} loading={loading} columns={columns} />
+  return <Table dataSource={data} loading={loading} columns={columns} pagination={false} />
 }
 
 export { ProcessTabPane }

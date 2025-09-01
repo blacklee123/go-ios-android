@@ -142,58 +142,7 @@ func (s *Server) hSyslog(c *gin.Context) {
 	})
 }
 
-func (s *Server) hListForward(c *gin.Context) {
-	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	c.JSON(http.StatusOK, s.iosForwards[device.Properties.SerialNumber])
-}
 
-func (s *Server) hRetrieveForward(c *gin.Context) {
-	port, err := strconv.Atoi(c.Param("port"))
-	if err != nil || port > 65535 || port < 0 {
-		c.JSON(http.StatusBadRequest, GenericResponse{Error: "invalid port"})
-		return
-	}
-	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	forwaredPort, ok := s.iosForwards[device.Properties.SerialNumber][port]
-	if ok {
-		c.JSON(http.StatusOK, gin.H{
-			"port": forwaredPort,
-		})
-	} else {
-		hostPort, _, errs := s.createForward(device, 0, port)
-		if errs != nil {
-			c.JSON(http.StatusInternalServerError, GenericResponse{Error: errs.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"port": hostPort,
-		})
-	}
-}
-
-type ForwardPorts struct {
-	Ports []int `json:"Ports" binding:"required"`
-}
-
-func (s *Server) hCreateForward(c *gin.Context) {
-	var ports ForwardPorts
-	// 将请求体绑定到结构体
-	if err := c.ShouldBindJSON(&ports); err != nil {
-		// 绑定失败时返回错误信息
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	for _, port := range ports.Ports {
-
-		cl, _, err := s.createForward(device, 0, port)
-		if err == nil {
-			defer stopForwarding(cl)
-		}
-	}
-	c.JSON(http.StatusOK, s.iosForwards[device.Properties.SerialNumber])
-
-}
 
 type Location struct {
 	Lat float64 `json:"lat" binding:"required"`

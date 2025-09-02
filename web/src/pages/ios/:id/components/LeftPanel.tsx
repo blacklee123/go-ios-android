@@ -1,19 +1,18 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
 import type { WindowSizeResponse } from '@go-ios-android/wda/types'
 import { HomeOutlined, InfoCircleOutlined, PoweroffOutlined } from '@ant-design/icons'
-import { Button, Card, Flex, Space, Spin } from 'antd'
+import { Button, Card, Flex, Space } from 'antd'
 import React, { useRef } from 'react'
 
 interface LeftPanelProps {
   udid: string
   driver: WebDriverAgentClient
-  windowSize: WindowSizeResponse | undefined
-  windowSizeLoading: boolean
+  windowSize: WindowSizeResponse
 }
 
 const MOVE_THRESHOLD = 5 // 滑动阈值（设备像素）
 
-const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver, windowSize, windowSizeLoading }) => {
+const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver, windowSize }) => {
   const imgRef = useRef<HTMLImageElement>(null)
 
   // 使用ref存储状态
@@ -133,30 +132,28 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ udid, driver, windowSize, windowS
 
   return (
     <Card title="设备控制" extra={<InfoCircleOutlined />}>
-      <Spin spinning={windowSizeLoading}>
-        <Flex gap={8}>
-          <Flex vertical gap={8}>
-            <img
-              ref={imgRef}
-              className="object-contain max-h-full mx-auto cursor-pointer"
-              alt="设备屏幕"
-              src={`/api/ios/${udid}/wdavideo/`}
-              draggable="false"
-              onMouseDown={_onMouseDown}
-              onMouseMove={_onMouseMove}
-              onMouseUp={_onMouseUp}
-              onMouseLeave={_onMouseLeave}
-            />
-            <Button block icon={<HomeOutlined />} onClick={pressHome}></Button>
-          </Flex>
-          <Space.Compact direction="vertical">
-            <Button icon={<InfoCircleOutlined />} />
-            <Button icon={<InfoCircleOutlined />} />
-            <Button icon={<InfoCircleOutlined />} />
-            <Button icon={<PoweroffOutlined />} onClick={onPower} />
-          </Space.Compact>
+      <Flex gap={8}>
+        <Flex vertical gap={8}>
+          <img
+            ref={imgRef}
+            className="object-contain max-h-full mx-auto cursor-pointer"
+            alt="设备屏幕"
+            src={`/api/ios/${udid}/wdavideo/`}
+            draggable="false"
+            onMouseDown={_onMouseDown}
+            onMouseMove={_onMouseMove}
+            onMouseUp={_onMouseUp}
+            onMouseLeave={_onMouseLeave}
+          />
+          <Button block icon={<HomeOutlined />} onClick={pressHome}></Button>
         </Flex>
-      </Spin>
+        <Space.Compact direction="vertical">
+          <Button icon={<InfoCircleOutlined />} />
+          <Button icon={<InfoCircleOutlined />} />
+          <Button icon={<InfoCircleOutlined />} />
+          <Button icon={<PoweroffOutlined />} onClick={onPower} />
+        </Space.Compact>
+      </Flex>
     </Card>
   )
 }

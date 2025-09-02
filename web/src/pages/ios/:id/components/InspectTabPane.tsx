@@ -8,12 +8,12 @@ import { UnityPoco } from '@/components/UnityPoco'
 
 interface InspectTabPaneProps {
   udid: string
-  windowSize: WindowSizeResponse | undefined
+  windowSize: WindowSizeResponse
   driver: WebDriverAgentClient
 }
 
 const InspectTabPane: React.FC<InspectTabPaneProps> = ({ udid, driver, windowSize }) => {
-  const [selectedEngine, setSelectedEngine] = useState<string | undefined>(undefined)
+  const [selectedEngine, setSelectedEngine] = useState<string>()
 
   const onChange: SelectProps['onChange'] = async (value) => {
     setSelectedEngine(value)

@@ -1,32 +1,23 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
 import type { WindowSizeResponse } from '@go-ios-android/wda/types'
-import type { TreeProps } from 'antd'
-import type { ElementDetail, ElementNode } from '@/utils'
+import type { TreeDataNode, TreeProps } from 'antd'
+import type { WdaElementNode } from '@/utils'
 
 import { useRequest } from 'ahooks'
-import { Col, Form, Input, Row, Spin, Switch, Tree } from 'antd'
+import { Button, Col, Form, Input, Row, Skeleton, Spin, Switch, Tree } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { parseWDAXml } from '@/utils'
 
 interface IosPocoProps {
   udid: string
-  windowSize: WindowSizeResponse | undefined
+  windowSize: WindowSizeResponse
   driver: WebDriverAgentClient
 }
 
-interface TreeNode {
-  key: string // 必须
-  title: string // 必须
-  label: string
-  detail: ElementDetail
-  children?: TreeNode[]
-}
-
-function convertToTreeData(nodes: ElementNode[]): TreeNode[] {
+function convertToTreeData(nodes: WdaElementNode[]): TreeDataNode[] {
   return nodes.map(node => ({
-    key: node.id.toString(), // 必须转为字符串
-    title: node.label, // 必须
-    label: node.label,
+    key: node.id.toString(),
+    title: node.label,
     detail: node.detail,
     children: node.children ? convertToTreeData(node.children) : undefined,
   }))
@@ -37,25 +28,25 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   const imgCacheRef = useRef<HTMLImageElement | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [form] = Form.useForm()
-  const [selectedNode, setSelectedNode] = useState<TreeNode | undefined>(undefined)
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]) // 添加展开状态
+  const [selectedNode, setSelectedNode] = useState<TreeDataNode>()
+  const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]) // 添加展开状态
   const [screenshotLoading, setScreenshotLoading] = useState(false)
   const [pixelRatio, setPixelRatio] = useState<number>(1)
 
-  const { data: rawData = [], loading } = useRequest(
+  const { data: treeData, loading, refresh: refreshWdaSource } = useRequest(
     async () => {
       const res = await driver.source()
       const parsedData = parseWDAXml(res.value)
-      const treeData = convertToTreeData(parsedData || [])
+      const treeData = convertToTreeData(parsedData)
       setExpandedKeys([treeData[0].key])
       return treeData
     },
   )
 
   // 高亮选中的元素
-  const highlightElement = (node: TreeNode) => {
-    if (!canvasRef.current || !windowSize || !imgCacheRef.current || !pixelRatio)
+  const highlightElement = (node: TreeDataNode) => {
+    if (!canvasRef.current || !imgCacheRef.current || !pixelRatio)
       return
 
     const canvas = canvasRef.current
@@ -93,7 +84,7 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
 
   // 加载截图到Canvas
   const loadScreenshot = async () => {
-    if (!canvasRef.current || !windowSize)
+    if (!canvasRef.current)
       return
 
     setScreenshotLoading(true)
@@ -109,8 +100,7 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
 
     img.onload = () => {
       // 计算设备像素比
-      const calculatedRatio = img.width / windowSize.value.width
-      setPixelRatio(calculatedRatio)
+      setPixelRatio(img.width / windowSize.value.width)
 
       // 缓存图片用于重绘
       imgCacheRef.current = img
@@ -147,19 +137,8 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
     loadScreenshot()
   }, [])
 
-  const onSelect: TreeProps['onSelect'] = async (selectedKeys, info) => {
-    setSelectedNode(info.node as TreeNode)
-    setSelectedKeys(selectedKeys as string[])
-    form.setFieldsValue((info.node as TreeNode).detail)
-  }
-
-  // 处理树形控件的展开/折叠事件
-  const onExpand: TreeProps['onExpand'] = (expandedKeys) => {
-    setExpandedKeys(expandedKeys as string[])
-  }
-
   const calculateDeviceCoordinates = (event: React.MouseEvent) => {
-    if (!canvasRef.current || !windowSize || !pixelRatio || !containerRef.current)
+    if (!canvasRef.current || !pixelRatio || !containerRef.current)
       return { x: 0, y: 0 }
 
     const container = containerRef.current
@@ -176,8 +155,8 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
     return { x, y }
   }
 
-  const findElementByPoint = (ele: TreeNode[], x: number, y: number): { ele: TreeNode, size: number }[] => {
-    const result: { ele: TreeNode, size: number }[] = []
+  const findElementByPoint = (ele: TreeDataNode[], x: number, y: number): { ele: TreeDataNode, size: number }[] => {
+    const result: { ele: TreeDataNode, size: number }[] = []
     for (const i in ele) {
       const eleStartX = Number.parseInt(ele[i].detail.x)
       const eleStartY = Number.parseInt(ele[i].detail.y)
@@ -197,7 +176,7 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
     return result
   }
 
-  const findMinSize = (data: { ele: TreeNode, size: number }[]): TreeNode | null => {
+  const findMinSize = (data: { ele: TreeDataNode, size: number }[]): TreeDataNode | null => {
     if (data.length === 0) {
       return null
     }
@@ -216,10 +195,10 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   }
 
   // 查找节点的所有父节点key（用于展开树）
-  const findParentKeys = (node: TreeNode, treeData: TreeNode[]): string[] => {
-    const keys: string[] = []
+  const findParentKeys = (node: TreeDataNode, treeData: TreeDataNode[]): React.Key[] => {
+    const keys: React.Key[] = []
 
-    function findPath(currentNode: TreeNode, path: string[], data: TreeNode[]): boolean {
+    function findPath(currentNode: TreeDataNode, path: React.Key[], data: TreeDataNode[]): boolean {
       for (const item of data) {
         const newPath = [...path, item.key]
         if (item.key === currentNode.key) {
@@ -240,11 +219,11 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   }
 
   const handleCanvasClick = async (event: React.MouseEvent) => {
-    if (!windowSize || !canvasRef.current || !rawData.length)
+    if (!canvasRef.current || !treeData)
       return
 
     const { x, y } = calculateDeviceCoordinates(event)
-    const elements = findElementByPoint(rawData, x, y)
+    const elements = findElementByPoint(treeData, x, y)
     const target = findMinSize(elements)
 
     if (target) {
@@ -253,18 +232,36 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
       form.setFieldsValue(target.detail)
 
       // 查找并展开所有父节点
-      const parentKeys = findParentKeys(target, rawData)
+      const parentKeys = findParentKeys(target, treeData)
       setExpandedKeys(prev => [...new Set([...prev, ...parentKeys])])
     }
   }
 
   // 计算宽高比
-  const aspectRatio = windowSize
-    ? windowSize.value.height / windowSize.value.width
-    : 0
+  const aspectRatio = windowSize.value.height / windowSize.value.width
+
+  function handleRefresh() {
+    refreshWdaSource()
+    loadScreenshot()
+    setSelectedNode(undefined)
+    setSelectedKeys([])
+    setExpandedKeys([])
+  }
+
+  const onTreeNodeSelect: TreeProps['onSelect'] = (selectedKeys, info) => {
+    setSelectedNode(info.node)
+    setSelectedKeys(selectedKeys)
+    form.setFieldsValue(info.node.detail)
+  }
+
+  // 处理树形控件的展开/折叠事件
+  const onTreeExpand: TreeProps['onExpand'] = (expandedKeys) => {
+    setExpandedKeys(expandedKeys)
+  }
 
   return (
     <Row gutter={[24, 24]}>
+      <Col span={24}><Button onClick={handleRefresh} type="primary" loading={loading}>重新获取控件元素</Button></Col>
       <Col span={7}>
         <Spin spinning={screenshotLoading}>
           <div
@@ -296,13 +293,13 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
         </Spin>
       </Col>
       <Col span={9}>
-        <Spin spinning={loading}>
+        <Skeleton loading={loading} active>
           {
-            rawData.length > 0 && (
+            treeData && (
               <Tree
-                treeData={rawData}
-                onSelect={onSelect}
-                onExpand={onExpand} // 添加展开事件处理
+                treeData={treeData}
+                onSelect={onTreeNodeSelect}
+                onExpand={onTreeExpand} // 添加展开事件处理
                 expandedKeys={expandedKeys} // 控制展开状态
                 height={648}
                 selectedKeys={selectedKeys}
@@ -310,7 +307,7 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
               </Tree>
             )
           }
-        </Spin>
+        </Skeleton>
       </Col>
       <Col span={8}>
         {

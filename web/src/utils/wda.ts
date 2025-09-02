@@ -1,14 +1,14 @@
 // 类型定义
-export interface ElementDetail {
+export interface WdaElementDetail {
   xpath: string
   [attr: string]: string // 动态属性
 }
 
-export interface ElementNode {
+export interface WdaElementNode {
   id: number
   label: string
-  detail: ElementDetail
-  children?: ElementNode[]
+  detail: WdaElementDetail
+  children?: WdaElementNode[]
 }
 
 let xpathId = 1
@@ -18,7 +18,7 @@ let xpathId = 1
  * @param xmlString WDA 返回的 XML 字符串
  * @returns 元素节点树
  */
-export function parseWDAXml(xmlString: string): ElementNode[] | null {
+export function parseWDAXml(xmlString: string): WdaElementNode[] {
   try {
     // 重置全局 ID 计数器
     xpathId = 1
@@ -35,7 +35,7 @@ export function parseWDAXml(xmlString: string): ElementNode[] | null {
   }
   catch (e) {
     console.error('XML 解析错误:', e)
-    return null
+    return []
   }
 }
 
@@ -45,8 +45,8 @@ export function parseWDAXml(xmlString: string): ElementNode[] | null {
  * @param parentXpath 父元素的 XPath
  * @returns 元素节点数组
  */
-export function getChildElements(elements: Element[], parentXpath: string): ElementNode[] {
-  const elementList: ElementNode[] = []
+export function getChildElements(elements: Element[], parentXpath: string): WdaElementNode[] {
+  const elementList: WdaElementNode[] = []
 
   for (let i = 0; i < elements.length; i++) {
     const element = elements[i]
@@ -70,7 +70,7 @@ export function getChildElements(elements: Element[], parentXpath: string): Elem
       : `${parentXpath}/${tagName}[${currentIndex}]`
 
     // 创建元素节点
-    const node: ElementNode = {
+    const node: WdaElementNode = {
       id: xpathId++,
       label: `<${tagName}>`,
       detail: {

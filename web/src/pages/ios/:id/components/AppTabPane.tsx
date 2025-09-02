@@ -16,7 +16,7 @@ interface AppTabPaneProps {
 
 const AppTabPane: React.FC<AppTabPaneProps> = ({ udid }) => {
   const [activeKey, setActiveKey] = React.useState<string>('user')
-  const { data: apps, loading } = useRequest(() => listApp(udid, activeKey), { refreshDeps: [activeKey] })
+  const { data: apps, loading, refresh } = useRequest(() => listApp(udid, activeKey), { refreshDeps: [activeKey] })
   const [searchText, setSearchText] = useState('')
   const [searchedColumn, setSearchedColumn] = useState('')
   const searchInput = useRef<InputRef>(null)
@@ -198,6 +198,7 @@ const AppTabPane: React.FC<AppTabPaneProps> = ({ udid }) => {
   return (
     <Space className="w-full" direction="vertical">
       <Tabs items={items} activeKey={activeKey} onChange={key => setActiveKey(key)}></Tabs>
+      <Button onClick={refresh} type="primary" className="float-right">刷新</Button>
       <Table loading={loading} dataSource={apps} columns={columns} pagination={{ showSizeChanger: true }} />
     </Space>
 

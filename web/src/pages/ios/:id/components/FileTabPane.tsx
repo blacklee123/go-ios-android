@@ -1,7 +1,7 @@
 import type { Key } from 'react'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useRequest } from 'ahooks'
-import { Empty, Select, Space, Spin, Tooltip, Tree } from 'antd'
+import { Button, Empty, Select, Space, Spin, Tooltip, Tree } from 'antd'
 import React, { useCallback, useState } from 'react'
 import { listApp, listFile } from '@/api/ios'
 
@@ -39,7 +39,7 @@ const FileTabPane: React.FC<FileTabPaneProps> = ({ udid }) => {
   const { data: apps = [], loading: appLoading } = useRequest(() => listApp(udid, 'filesharingapps'))
 
   // 加载根目录
-  const { loading: rootLoading } = useRequest(() => listFile(udid, appBundleId), {
+  const { loading: rootLoading, refresh } = useRequest(() => listFile(udid, appBundleId), {
     onSuccess: (files) => {
       const rootNodes = generateTreeNodes('/', files)
       setTreeData(rootNodes)
@@ -122,12 +122,13 @@ const FileTabPane: React.FC<FileTabPaneProps> = ({ udid }) => {
 
   return (
     <Space direction="vertical" className="w-full">
-      {/* <Select
+      <Button onClick={refresh} type="primary" className="float-right">刷新</Button>
+      <Select
         className="w-48"
         loading={appLoading}
         options={apps.map(app => ({ label: app.CFBundleName, value: app.CFBundleIdentifier }))}
         onSelect={value => setAppBundleId(value)}
-      /> */}
+      />
       {
         rootLoading
           ? <Spin tip="加载文件列表中..." style={{ width: '100%', padding: '40px 0' }} />

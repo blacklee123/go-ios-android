@@ -19,7 +19,7 @@ interface RightPanelProps {
   driver: WebDriverAgentClient
   tabKey: string
   setTabKey: (key: string) => void
-  windowSize: WindowSizeResponse | undefined
+  windowSize: WindowSizeResponse
 }
 
 const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey, windowSize }) => {
@@ -62,7 +62,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ udid, driver, tabKey, setTabKey
     {
       key: 'perf',
       label: '性能',
-      children: <PerfTabPane udid={udid} driver={driver} windowSize={windowSize} />,
+      children: <PerfTabPane udid={udid} />,
     },
   ]
   return (

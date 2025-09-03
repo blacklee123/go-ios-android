@@ -4,7 +4,7 @@ import type { TreeDataNode, TreeProps } from 'antd'
 import type { WdaElementDetail, WdaElementNode } from '@/utils'
 
 import { useRequest } from 'ahooks'
-import { Button, Col, Form, Input, Row, Skeleton, Space, Spin, Switch, Tree, Typography } from 'antd'
+import { Button, Col, Form, Input, Row, Skeleton, Space, Spin, Switch, Tree } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { parseWDAXml } from '@/utils'
 
@@ -280,23 +280,10 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
           <span>
             {`="${node.detail.name}" >`}
           </span>
-          {
-            node.detail.label && node.detail.label !== ''
-            && <Typography.Text type="secondary" className="pl-2">{`label="${node.detail.label}"`}</Typography.Text>
-          }
-
         </>
       )
     }
-    return (
-      <>
-        <span>{node.title}</span>
-        {
-          node.detail?.label && node.detail.label !== ' '
-          && <Typography.Text type="secondary" className="pl-2">{`label="${node.detail.label}"`}</Typography.Text>
-        }
-      </>
-    )
+    return node.title
   }
 
   function handleRefresh() {

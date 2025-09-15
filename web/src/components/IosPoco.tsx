@@ -6,6 +6,7 @@ import type { WdaElementDetail, WdaElementNode } from '@/utils'
 import { useRequest } from 'ahooks'
 import { Button, Col, Form, Input, Row, Skeleton, Space, Spin, Switch, Tree, Typography } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
+import Highlighter from 'react-highlight-words'
 import { parseWDAXml } from '@/utils'
 
 interface IosPocoProps {
@@ -115,6 +116,8 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   const [selectedNode, setSelectedNode] = useState<ExtendedTreeDataNode>()
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
+  const [searchValue, setSearchValue] = useState('')
+  const [autoExpandParent, setAutoExpandParent] = useState(true)
   const [screenshotLoading, setScreenshotLoading] = useState(false)
   const [pixelRatio, setPixelRatio] = useState<number>(1)
 
@@ -162,31 +165,31 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   }
 
   // 查找节点的所有父节点key（用于展开树）
-  const findParentKeys = (
-    node: ExtendedTreeDataNode,
-    treeData: ExtendedTreeDataNode[],
-  ): React.Key[] => {
-    const keys: React.Key[] = []
+  // const findParentKeys = (
+  //   node: ExtendedTreeDataNode,
+  //   treeData: ExtendedTreeDataNode[],
+  // ): React.Key[] => {
+  //   const keys: React.Key[] = []
 
-    function findPath(currentNode: ExtendedTreeDataNode, path: React.Key[], data: ExtendedTreeDataNode[]): boolean {
-      for (const item of data) {
-        const newPath = [...path, item.key]
-        if (item.key === currentNode.key) {
-          keys.push(...newPath)
-          return true
-        }
-        if (item.children && item.children.length > 0) {
-          const found = findPath(currentNode, newPath, item.children)
-          if (found)
-            return true
-        }
-      }
-      return false
-    }
+  //   function findPath(currentNode: ExtendedTreeDataNode, path: React.Key[], data: ExtendedTreeDataNode[]): boolean {
+  //     for (const item of data) {
+  //       const newPath = [...path, item.key]
+  //       if (item.key === currentNode.key) {
+  //         keys.push(...newPath)
+  //         return true
+  //       }
+  //       if (item.children && item.children.length > 0) {
+  //         const found = findPath(currentNode, newPath, item.children)
+  //         if (found)
+  //           return true
+  //       }
+  //     }
+  //     return false
+  //   }
 
-    findPath(node, [], treeData)
-    return keys
-  }
+  //   findPath(node, [], treeData)
+  //   return keys
+  // }
 
   // 当选中节点变化时更新高亮
   useEffect(() => {
@@ -255,8 +258,10 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
       form.setFieldsValue(target.detail)
 
       // 查找并展开所有父节点
-      const parentKeys = findParentKeys(target, treeData)
-      setExpandedKeys(prev => [...new Set([...prev, ...parentKeys])])
+      // const parentKeys = findParentKeys(target, treeData)
+      // setExpandedKeys(prev => [...new Set([...prev, ...parentKeys])])
+      setExpandedKeys([target.key])
+      setAutoExpandParent(true)
     }
   }
 
@@ -270,23 +275,29 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
 
   const treeTitleRender: TreeProps['titleRender'] = (nodeData) => {
     const node = nodeData as ExtendedTreeDataNode
-    return (
-      <>
-        <span>
-          {node.title}
-        </span>
-        {
-          node.detail?.name && node.detail.name !== ' ' && (
-            <Typography.Text type="secondary">
-              {' '}
-              name =
-              {' '}
-              {node.detail.name}
-            </Typography.Text>
-          )
-        }
-      </>
-    )
+    return searchValue
+      ? (
+          <Highlighter
+            highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+            searchWords={[searchValue]}
+            autoEscape
+            textToHighlight={`${node.title} ${node.detail?.name || ''}`}
+          />
+        )
+      : (
+          <>
+            <span>
+              {node.title}
+            </span>
+            {
+              node.detail?.name && node.detail.name !== ' ' && (
+                <Typography.Text type="secondary">
+                  {` name = ${node.detail.name} `}
+                </Typography.Text>
+              )
+            }
+          </>
+        )
   }
 
   function handleRefresh() {
@@ -306,6 +317,23 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   // 处理树形控件的展开/折叠事件
   const onTreeExpand: TreeProps['onExpand'] = (expandedKeys) => {
     setExpandedKeys(expandedKeys)
+    setAutoExpandParent(false)
+  }
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target
+    // const newExpandedKeys = dataList
+    //   .map((item) => {
+    //     if (item.title.indexOf(value) > -1) {
+    //       return getParentKey(item.key, defaultData);
+    //     }
+    //     return null;
+    //   })
+    //   .filter((item, i, self): item is React.Key => !!(item && self.indexOf(item) === i));
+    // setExpandedKeys(newExpandedKeys);
+    setSelectedNode(undefined)
+    setSearchValue(value)
+    setAutoExpandParent(true)
   }
 
   return (
@@ -346,13 +374,14 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
           {
             treeData && (
               <Space direction="vertical" className="w-full">
-                <Input.Search />
+                <Input.Search placeholder="Search" onChange={onSearchChange} />
                 <Tree
                   treeData={treeData}
                   titleRender={treeTitleRender}
                   onSelect={onTreeNodeSelect}
                   onExpand={onTreeExpand}
                   expandedKeys={expandedKeys}
+                  autoExpandParent={autoExpandParent}
                   // height={648}
                   selectedKeys={selectedKeys}
                 />

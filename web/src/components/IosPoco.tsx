@@ -4,7 +4,7 @@ import type { TreeDataNode, TreeProps } from 'antd'
 import type { WdaElementDetail, WdaElementNode } from '@/utils'
 
 import { useRequest } from 'ahooks'
-import { Button, Col, Form, Input, Row, Skeleton, Space, Spin, Switch, Tree } from 'antd'
+import { Button, Col, Form, Input, Row, Skeleton, Space, Spin, Switch, Tree, Typography } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { parseWDAXml } from '@/utils'
 
@@ -15,7 +15,7 @@ interface IosPocoProps {
 }
 
 interface ExtendedTreeDataNode extends TreeDataNode {
-  detail?: WdaElementDetail
+  detail: WdaElementDetail
   children?: ExtendedTreeDataNode[]
 }
 
@@ -270,20 +270,23 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
 
   const treeTitleRender: TreeProps['titleRender'] = (nodeData) => {
     const node = nodeData as ExtendedTreeDataNode
-    if (node.detail?.name && node.detail.name !== ' ') {
-      return (
-        <>
-          <span>
-            {`${(node.title! as string).substring(0, (node.title! as string).indexOf('>'))} `}
-          </span>
-          <span className="text-red-400">name</span>
-          <span>
-            {`="${node.detail.name}" >`}
-          </span>
-        </>
-      )
-    }
-    return node.title
+    return (
+      <>
+        <span>
+          {node.title}
+        </span>
+        {
+          node.detail?.name && node.detail.name !== ' ' && (
+            <Typography.Text type="secondary">
+              {' '}
+              name =
+              {' '}
+              {node.detail.name}
+            </Typography.Text>
+          )
+        }
+      </>
+    )
   }
 
   function handleRefresh() {
@@ -295,9 +298,9 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   }
 
   const onTreeNodeSelect: TreeProps['onSelect'] = (selectedKeys, info) => {
-    setSelectedNode(info.node as ExtendedTreeDataNode)
+    setSelectedNode(info.node as TreeDataNode as ExtendedTreeDataNode)
     setSelectedKeys(selectedKeys)
-    form.setFieldsValue((info.node as ExtendedTreeDataNode).detail)
+    form.setFieldsValue((info.node as TreeDataNode as ExtendedTreeDataNode).detail)
   }
 
   // 处理树形控件的展开/折叠事件
@@ -350,7 +353,7 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
                   onSelect={onTreeNodeSelect}
                   onExpand={onTreeExpand}
                   expandedKeys={expandedKeys}
-                  height={648}
+                  // height={648}
                   selectedKeys={selectedKeys}
                 />
               </Space>
@@ -361,7 +364,7 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
       <Col span={8}>
         {
           selectedNode && (
-            <Form form={form} size="small" labelCol={{ span: 6 }}>
+            <Form form={form} size="small" labelCol={{ span: 6 }} disabled>
               <Form.Item label="type" name="type">
                 <Input />
               </Form.Item>

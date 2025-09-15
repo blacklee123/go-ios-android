@@ -118,6 +118,8 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
   const [searchValue, setSearchValue] = useState('')
   const [autoExpandParent, setAutoExpandParent] = useState(true)
+  const [dataList, setDataList] = useState<{ key: string, title: string, name: string }[]>([])
+  const [parentMap, setParentMap] = useState<Map<string, string | null>>(new Map())
   const [screenshotLoading, setScreenshotLoading] = useState(false)
   const [pixelRatio, setPixelRatio] = useState<number>(1)
 
@@ -127,6 +129,30 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
       const parsedData = parseWDAXml(res.value)
       const treeData = convertToTreeData(parsedData)
       setExpandedKeys([treeData[0].key])
+      const flatList: { key: string, title: string, name: string }[] = []
+      const parentMapping = new Map()
+
+      function flattenNodes(nodes: WdaElementNode[], parentKey: string | null = null) {
+        nodes.forEach((node) => {
+          flatList.push({
+            key: node.id.toString(),
+            title: node.label,
+            name: node.detail?.name || '',
+          })
+
+          if (parentKey) {
+            parentMapping.set(node.id.toString(), parentKey)
+          }
+
+          if (node.children) {
+            flattenNodes(node.children, node.id.toString())
+          }
+        })
+      }
+
+      flattenNodes(parsedData)
+      setDataList(flatList)
+      setParentMap(parentMapping)
       return treeData
     },
   )
@@ -331,6 +357,28 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
     //   })
     //   .filter((item, i, self): item is React.Key => !!(item && self.indexOf(item) === i));
     // setExpandedKeys(newExpandedKeys);
+    // 查找匹配的节点
+    const matchedKeys = dataList
+      .filter(item =>
+        item.title.toLowerCase().includes(value.toLowerCase())
+        || item.name.toLowerCase().includes(value.toLowerCase()),
+      )
+      .map(item => item.key)
+
+    // 查找所有需要展开的父节点
+    const newExpandedKeys: Set<string> = new Set()
+    matchedKeys.forEach((key) => {
+      // 添加匹配节点本身
+      newExpandedKeys.add(key)
+
+      // 添加所有父节点
+      let currentKey = key
+      while (parentMap.has(currentKey)) {
+        currentKey = parentMap.get(currentKey)
+        newExpandedKeys.add(currentKey)
+      }
+    })
+    setExpandedKeys(Array.from(newExpandedKeys))
     setSelectedNode(undefined)
     setSearchValue(value)
     setAutoExpandParent(true)

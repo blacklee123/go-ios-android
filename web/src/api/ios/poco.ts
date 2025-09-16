@@ -1,6 +1,7 @@
 import { axiosInstance } from '../index'
 
 export interface PocoNode {
+  id?: string
   name: string
   payload: {
     anchorPoint: [ x: number, y: number ]
@@ -14,6 +15,8 @@ export interface PocoNode {
       global: number
       local: number
     }
+    index?: number
+    xpath?: string
   }
   children: PocoNode[]
 }

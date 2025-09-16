@@ -1,36 +1,141 @@
 import type { WebDriverAgentClient } from '@go-ios-android/wda'
 import type { WindowSizeResponse } from '@go-ios-android/wda/types'
-import type { TreeProps } from 'antd'
-import type { PocoNode } from '@/api/ios/poco'
-import type { ElementDetail } from '@/utils'
+import type { TreeDataNode, TreeProps } from 'antd'
+import type { PocoNode } from '@/api/ios'
 
 import { useRequest } from 'ahooks'
-import { Col, Form, Input, Row, Spin, Switch, Tree } from 'antd'
+import { Button, Col, Form, Input, Row, Skeleton, Space, Spin, Switch, Tree } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
-import { pocoDump } from '@/api/ios/poco'
+import Highlighter from 'react-highlight-words'
+import { v4 as uuidv4 } from 'uuid'
+import { pocoDump } from '@/api/ios'
 
 interface IosPocoProps {
   udid: string
-  windowSize: WindowSizeResponse | undefined
+  windowSize: WindowSizeResponse
   driver: WebDriverAgentClient
 }
 
-interface TreeNode {
-  key: string // 必须
-  title: string // 必须
-  label: string
-  detail: ElementDetail
-  children?: TreeNode[]
+interface ExtendedTreeDataNode extends TreeDataNode {
+  detail: PocoNode
+  children?: ExtendedTreeDataNode[]
 }
 
-function convertToTreeData(nodes: PocoNode[]): TreeNode[] {
+function transferPoco(data: PocoNode[], xpath: string = '') {
+  for (const i in data) {
+    data[i].id = uuidv4()
+    let tagCount = 0
+    let siblingIndex = 0
+    let indexXpath
+    for (const j in data) {
+      if (data[j].name === data[i].name) {
+        tagCount++
+      }
+      if (i === j) {
+        siblingIndex = tagCount
+      }
+    }
+    if (tagCount === 1) {
+      indexXpath = `${xpath}/${data[i].name}`
+    }
+    else {
+      data[i].payload.index = siblingIndex
+      indexXpath = `${xpath}/${data[i].name}[${siblingIndex}]`
+    }
+    data[i].payload.xpath = indexXpath
+    if (data[i].children && data[i].children.length > 0) {
+      data[i].children = transferPoco(data[i].children, indexXpath)
+    }
+  }
+  return data
+}
+
+function convertToTreeData(nodes: PocoNode[]): ExtendedTreeDataNode[] {
   return nodes.map(node => ({
-    key: node.name, // 必须转为字符串
-    title: node.name, // 必须
-    label: node.name,
-    detail: node.payload,
+    key: node.id!,
+    title: node.name,
+    detail: node,
     children: node.children ? convertToTreeData(node.children) : undefined,
   }))
+}
+
+// 高亮元素的纯函数
+function highlightElement(
+  canvas: HTMLCanvasElement,
+  img: HTMLImageElement | null,
+  pixelRatio: number,
+  node: ExtendedTreeDataNode,
+): void {
+  if (!img || !node.detail)
+    return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx)
+    return
+
+  // 清除画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  // 重新绘制截图
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+  // 获取元素坐标（逻辑像素）
+  const x = Number.parseInt(node.detail.x)
+  const y = Number.parseInt(node.detail.y)
+  const width = Number.parseInt(node.detail.width)
+  const height = Number.parseInt(node.detail.height)
+
+  // 转换为物理像素坐标
+  const physicalX = x * pixelRatio
+  const physicalY = y * pixelRatio
+  const physicalWidth = width * pixelRatio
+  const physicalHeight = height * pixelRatio
+
+  // 绘制高亮框
+  ctx.strokeStyle = '#1890ff'
+  ctx.lineWidth = 2
+  ctx.strokeRect(physicalX, physicalY, physicalWidth, physicalHeight)
+
+  // 绘制半透明填充
+  ctx.fillStyle = 'rgba(24, 144, 255, 0.3)'
+  ctx.fillRect(physicalX, physicalY, physicalWidth, physicalHeight)
+}
+
+// 计算设备坐标的纯函数
+function calculateDeviceCoordinates(
+  containerRect: DOMRect,
+  windowSize: WindowSizeResponse,
+  event: React.MouseEvent,
+): { x: number, y: number } {
+  // 计算鼠标在容器上的相对位置（0-1范围）
+  const relativeX = (event.clientX - containerRect.left) / containerRect.width
+  const relativeY = (event.clientY - containerRect.top) / containerRect.height
+
+  // 转换为设备逻辑坐标
+  const x = relativeX * windowSize.value.width
+  const y = relativeY * windowSize.value.height
+
+  return { x, y }
+}
+
+// 查找元素的最小尺寸
+function findMinSize(data: { ele: ExtendedTreeDataNode, size: number }[]): ExtendedTreeDataNode | null {
+  if (data.length === 0) {
+    return null
+  }
+
+  let result = data[0]
+  for (const item of data) {
+    if (item.size === result.size) {
+      if (item.ele.detail?.name && item.ele.detail.name.length !== 0) {
+        result = item
+      }
+    }
+    if (item.size < result.size) {
+      result = item
+    }
+  }
+  return result.ele
 }
 
 const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
@@ -38,70 +143,97 @@ const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
   const imgCacheRef = useRef<HTMLImageElement | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [form] = Form.useForm()
-  const [selectedNode, setSelectedNode] = useState<TreeNode | undefined>(undefined)
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]) // 添加展开状态
+  const [selectedNode, setSelectedNode] = useState<ExtendedTreeDataNode>()
+  const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
+  const [searchValue, setSearchValue] = useState('')
+  const [autoExpandParent, setAutoExpandParent] = useState(true)
+  const [dataList, setDataList] = useState<{ key: string, title: string, name: string }[]>([])
+  const [parentMap, setParentMap] = useState<Map<string, string | null>>(new Map())
   const [screenshotLoading, setScreenshotLoading] = useState(false)
   const [pixelRatio, setPixelRatio] = useState<number>(1)
 
-  const { data: rawData = [], loading } = useRequest(
+  const { data: treeData, loading, refresh: refreshWdaSource } = useRequest(
     async () => {
-      const res = pocoDump(udid, 5001)
-      // const parsedData = parseWDAXml(res.value)
-      const treeData = convertToTreeData([res] || [])
+      const parsedData = await pocoDump(udid, 5001)
+      const transferedData = transferPoco([parsedData])
+      const treeData = convertToTreeData(transferedData)
       setExpandedKeys([treeData[0].key])
+      const flatList: { key: string, title: string, name: string }[] = []
+      const parentMapping = new Map()
+
+      function flattenNodes(nodes: PocoNode[], parentKey: string | null = null) {
+        nodes.forEach((node) => {
+          flatList.push({
+            key: node.id!,
+            title: node.name,
+            name: node.name,
+          })
+
+          if (parentKey) {
+            parentMapping.set(node.id, parentKey)
+          }
+
+          if (node.children) {
+            flattenNodes(node.children, node.id)
+          }
+        })
+      }
+
+      flattenNodes([parsedData])
+      setDataList(flatList)
+      setParentMap(parentMapping)
       return treeData
     },
   )
 
-  // 高亮选中的元素
-  const highlightElement = (node: TreeNode) => {
-    if (!canvasRef.current || !windowSize || !imgCacheRef.current || !pixelRatio)
-      return
+  // 查找元素的纯函数
+  const findElementByPoint = (
+    elements: ExtendedTreeDataNode[],
+    x: number,
+    y: number,
+  ): { ele: ExtendedTreeDataNode, size: number }[] => {
+    const result: { ele: ExtendedTreeDataNode, size: number }[] = []
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx || !node.detail)
-      return
+    for (const element of elements) {
+      if (!element.detail)
+        continue
 
-    // 清除画布
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const eleStartX = element.detail.payload.pos[0]
+      const eleStartY = element.detail.payload.pos[1]
+      const eleEndX = eleStartX + element.detail.payload.size[0]
+      const eleEndY = eleStartY + element.detail.payload.size[1]
 
-    // 重新绘制截图
-    ctx.drawImage(imgCacheRef.current, 0, 0, canvas.width, canvas.height)
+      if (x >= eleStartX && x <= eleEndX && y >= eleStartY && y <= eleEndY) {
+        result.push({
+          ele: element,
+          size: element.detail.payload.size[1] * element.detail.payload.size[0],
+        })
+      }
 
-    // 获取元素坐标（逻辑像素）
-    const x = Number.parseInt(node.detail.x)
-    const y = Number.parseInt(node.detail.y)
-    const width = Number.parseInt(node.detail.width)
-    const height = Number.parseInt(node.detail.height)
+      if (element.children) {
+        const childrenResult = findElementByPoint(element.children, x, y)
+        result.push(...childrenResult)
+      }
+    }
 
-    // 转换为物理像素坐标
-    const physicalX = x * pixelRatio
-    const physicalY = y * pixelRatio
-    const physicalWidth = width * pixelRatio
-    const physicalHeight = height * pixelRatio
-
-    // 绘制高亮框
-    ctx.strokeStyle = '#1890ff'
-    ctx.lineWidth = 2
-    ctx.strokeRect(physicalX, physicalY, physicalWidth, physicalHeight)
-
-    // 绘制半透明填充
-    ctx.fillStyle = 'rgba(24, 144, 255, 0.3)'
-    ctx.fillRect(physicalX, physicalY, physicalWidth, physicalHeight)
+    return result
   }
+
+  // 当选中节点变化时更新高亮
+  useEffect(() => {
+    if (selectedNode && imgCacheRef.current && pixelRatio && canvasRef.current) {
+      highlightElement(canvasRef.current, imgCacheRef.current, pixelRatio, selectedNode)
+    }
+  }, [selectedNode, pixelRatio])
 
   // 加载截图到Canvas
   const loadScreenshot = async () => {
-    if (!canvasRef.current || !windowSize)
+    if (!canvasRef.current)
       return
 
     setScreenshotLoading(true)
     const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx)
-      return
 
     // 创建临时图片加载截图
     const img = new Image()
@@ -110,8 +242,7 @@ const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
 
     img.onload = () => {
       // 计算设备像素比
-      const calculatedRatio = img.width / windowSize.value.width
-      setPixelRatio(calculatedRatio)
+      setPixelRatio(img.width / windowSize.value.width)
 
       // 缓存图片用于重绘
       imgCacheRef.current = img
@@ -120,14 +251,18 @@ const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
       canvas.width = img.width
       canvas.height = img.height
 
-      // 绘制截图
-      ctx.drawImage(img, 0, 0, img.width, img.height)
-      setScreenshotLoading(false)
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        // 绘制截图
+        ctx.drawImage(img, 0, 0, img.width, img.height)
 
-      // 如果有选中的节点，绘制高亮
-      if (selectedNode) {
-        highlightElement(selectedNode)
+        // 如果有选中的节点，绘制高亮
+        if (selectedNode) {
+          highlightElement(canvas, img, pixelRatio, selectedNode)
+        }
       }
+
+      setScreenshotLoading(false)
     }
 
     img.onerror = () => {
@@ -136,116 +271,14 @@ const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
     }
   }
 
-  // 当选中节点变化时更新高亮
-  useEffect(() => {
-    if (selectedNode && imgCacheRef.current && pixelRatio) {
-      highlightElement(selectedNode)
-    }
-  }, [selectedNode, pixelRatio])
-
-  // 当选择应用时加载截图
-  useEffect(() => {
-    loadScreenshot()
-  }, [])
-
-  const onSelect: TreeProps['onSelect'] = async (selectedKeys, info) => {
-    setSelectedNode(info.node as TreeNode)
-    setSelectedKeys(selectedKeys as string[])
-    form.setFieldsValue((info.node as TreeNode).detail)
-  }
-
-  // 处理树形控件的展开/折叠事件
-  const onExpand: TreeProps['onExpand'] = (expandedKeys) => {
-    setExpandedKeys(expandedKeys as string[])
-  }
-
-  const calculateDeviceCoordinates = (event: React.MouseEvent) => {
-    if (!canvasRef.current || !windowSize || !pixelRatio || !containerRef.current)
-      return { x: 0, y: 0 }
-
-    const container = containerRef.current
-    const rect = container.getBoundingClientRect()
-
-    // 计算鼠标在容器上的相对位置（0-1范围）
-    const relativeX = (event.clientX - rect.left) / rect.width
-    const relativeY = (event.clientY - rect.top) / rect.height
-
-    // 转换为设备逻辑坐标
-    const x = relativeX * windowSize.value.width
-    const y = relativeY * windowSize.value.height
-
-    return { x, y }
-  }
-
-  const findElementByPoint = (ele: TreeNode[], x: number, y: number): { ele: TreeNode, size: number }[] => {
-    const result: { ele: TreeNode, size: number }[] = []
-    for (const i in ele) {
-      const eleStartX = Number.parseInt(ele[i].detail.x)
-      const eleStartY = Number.parseInt(ele[i].detail.y)
-      const eleEndX = Number.parseInt(ele[i].detail.x) + Number.parseInt(ele[i].detail.width)
-      const eleEndY = Number.parseInt(ele[i].detail.y) + Number.parseInt(ele[i].detail.height)
-      if (x >= eleStartX && x <= eleEndX && y >= eleStartY && y <= eleEndY) {
-        result.push({
-          ele: ele[i],
-          size: Number.parseInt(ele[i].detail.height) * Number.parseInt(ele[i].detail.width),
-        })
-      }
-      if (ele[i].children) {
-        const childrenResult = findElementByPoint(ele[i].children, x, y)
-        result.push(...childrenResult)
-      }
-    }
-    return result
-  }
-
-  const findMinSize = (data: { ele: TreeNode, size: number }[]): TreeNode | null => {
-    if (data.length === 0) {
-      return null
-    }
-    let result = data[0]
-    for (const i in data) {
-      if (data[i].size === result.size) {
-        if (data[i].ele.detail.name && data[i].ele.detail.name.length !== 0) {
-          result = data[i]
-        }
-      }
-      if (data[i].size < result.size) {
-        result = data[i]
-      }
-    }
-    return result.ele
-  }
-
-  // 查找节点的所有父节点key（用于展开树）
-  const findParentKeys = (node: TreeNode, treeData: TreeNode[]): string[] => {
-    const keys: string[] = []
-
-    function findPath(currentNode: TreeNode, path: string[], data: TreeNode[]): boolean {
-      for (const item of data) {
-        const newPath = [...path, item.key]
-        if (item.key === currentNode.key) {
-          keys.push(...newPath)
-          return true
-        }
-        if (item.children && item.children.length > 0) {
-          const found = findPath(currentNode, newPath, item.children)
-          if (found)
-            return true
-        }
-      }
-      return false
-    }
-
-    findPath(node, [], treeData)
-    return keys
-  }
-
   const handleCanvasClick = async (event: React.MouseEvent) => {
-    if (!windowSize || !canvasRef.current || !rawData.length)
+    if (!canvasRef.current || !treeData || !containerRef.current)
       return
 
-    const { x, y } = calculateDeviceCoordinates(event)
-    const elements = findElementByPoint(rawData, x, y)
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const { x, y } = calculateDeviceCoordinates(containerRect, windowSize, event)
+
+    const elements = findElementByPoint(treeData, x, y)
     const target = findMinSize(elements)
 
     if (target) {
@@ -253,19 +286,98 @@ const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
       setSelectedNode(target)
       form.setFieldsValue(target.detail)
 
-      // 查找并展开所有父节点
-      const parentKeys = findParentKeys(target, rawData)
-      setExpandedKeys(prev => [...new Set([...prev, ...parentKeys])])
+      setExpandedKeys([target.key])
+      setAutoExpandParent(true)
     }
   }
 
+  // 当选择应用时加载截图
+  useEffect(() => {
+    loadScreenshot()
+  }, [])
+
   // 计算宽高比
-  const aspectRatio = windowSize
-    ? windowSize.value.height / windowSize.value.width
-    : 0
+  const aspectRatio = windowSize.value.height / windowSize.value.width
+
+  const treeTitleRender: TreeProps['titleRender'] = (nodeData) => {
+    const node = nodeData as ExtendedTreeDataNode
+    return searchValue
+      ? (
+          <Highlighter
+            highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+            searchWords={[searchValue]}
+            autoEscape
+            textToHighlight={node.title}
+          />
+        )
+      : (
+          <span>
+            {node.title}
+          </span>
+        )
+  }
+
+  function handleRefresh() {
+    refreshWdaSource()
+    loadScreenshot()
+    setSelectedNode(undefined)
+    setSelectedKeys([])
+    setExpandedKeys([])
+  }
+
+  const onTreeNodeSelect: TreeProps['onSelect'] = (selectedKeys, info) => {
+    setSelectedNode(info.node as TreeDataNode as ExtendedTreeDataNode)
+    setSelectedKeys(selectedKeys)
+    form.setFieldsValue((info.node as TreeDataNode as ExtendedTreeDataNode).detail)
+  }
+
+  // 处理树形控件的展开/折叠事件
+  const onTreeExpand: TreeProps['onExpand'] = (expandedKeys) => {
+    setExpandedKeys(expandedKeys)
+    setAutoExpandParent(false)
+  }
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target
+    // const newExpandedKeys = dataList
+    //   .map((item) => {
+    //     if (item.title.indexOf(value) > -1) {
+    //       return getParentKey(item.key, defaultData);
+    //     }
+    //     return null;
+    //   })
+    //   .filter((item, i, self): item is React.Key => !!(item && self.indexOf(item) === i));
+    // setExpandedKeys(newExpandedKeys);
+    // 查找匹配的节点
+    const matchedKeys = dataList
+      .filter(item =>
+        item.title.toLowerCase().includes(value.toLowerCase())
+        || item.name.toLowerCase().includes(value.toLowerCase()),
+      )
+      .map(item => item.key)
+
+    // 查找所有需要展开的父节点
+    const newExpandedKeys: Set<string> = new Set()
+    matchedKeys.forEach((key) => {
+      // 添加匹配节点本身
+      newExpandedKeys.add(key)
+
+      // 添加所有父节点
+      let currentKey = key
+      while (parentMap.has(currentKey)) {
+        currentKey = parentMap.get(currentKey)
+        newExpandedKeys.add(currentKey)
+      }
+    })
+    setExpandedKeys(Array.from(newExpandedKeys))
+    setSelectedNode(undefined)
+    setSearchValue(value)
+    setAutoExpandParent(true)
+  }
 
   return (
     <Row gutter={[24, 24]}>
+      <Col span={24}><Button onClick={handleRefresh} type="primary" loading={loading}>重新获取控件元素</Button></Col>
       <Col span={7}>
         <Spin spinning={screenshotLoading}>
           <div
@@ -297,26 +409,30 @@ const UnityPoco: React.FC<IosPocoProps> = ({ udid, windowSize }) => {
         </Spin>
       </Col>
       <Col span={9}>
-        <Spin spinning={loading}>
+        <Skeleton loading={loading} active>
           {
-            rawData.length > 0 && (
-              <Tree
-                treeData={rawData}
-                onSelect={onSelect}
-                onExpand={onExpand} // 添加展开事件处理
-                expandedKeys={expandedKeys} // 控制展开状态
-                height={648}
-                selectedKeys={selectedKeys}
-              >
-              </Tree>
+            treeData && (
+              <Space direction="vertical" className="w-full">
+                <Input.Search placeholder="Search" onChange={onSearchChange} />
+                <Tree
+                  treeData={treeData}
+                  titleRender={treeTitleRender}
+                  onSelect={onTreeNodeSelect}
+                  onExpand={onTreeExpand}
+                  expandedKeys={expandedKeys}
+                  autoExpandParent={autoExpandParent}
+                  // height={648}
+                  selectedKeys={selectedKeys}
+                />
+              </Space>
             )
           }
-        </Spin>
+        </Skeleton>
       </Col>
       <Col span={8}>
         {
           selectedNode && (
-            <Form form={form} size="small" labelCol={{ span: 6 }}>
+            <Form form={form} size="small" labelCol={{ span: 6 }} disabled>
               <Form.Item label="type" name="type">
                 <Input />
               </Form.Item>

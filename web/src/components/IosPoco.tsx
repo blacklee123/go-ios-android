@@ -22,7 +22,7 @@ interface ExtendedTreeDataNode extends TreeDataNode {
 
 function convertToTreeData(nodes: WdaElementNode[]): ExtendedTreeDataNode[] {
   return nodes.map(node => ({
-    key: node.id.toString(),
+    key: node.id,
     title: node.label,
     detail: node.detail,
     children: node.children ? convertToTreeData(node.children) : undefined,
@@ -135,17 +135,17 @@ const IosPoco: React.FC<IosPocoProps> = ({ udid, driver, windowSize }) => {
       function flattenNodes(nodes: WdaElementNode[], parentKey: string | null = null) {
         nodes.forEach((node) => {
           flatList.push({
-            key: node.id.toString(),
+            key: node.id,
             title: node.label,
             name: node.detail?.name || '',
           })
 
           if (parentKey) {
-            parentMapping.set(node.id.toString(), parentKey)
+            parentMapping.set(node.id, parentKey)
           }
 
           if (node.children) {
-            flattenNodes(node.children, node.id.toString())
+            flattenNodes(node.children, node.id)
           }
         })
       }

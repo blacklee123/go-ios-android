@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid'
 // 类型定义
 export interface WdaElementDetail {
   xpath: string
@@ -5,13 +6,11 @@ export interface WdaElementDetail {
 }
 
 export interface WdaElementNode {
-  id: number
+  id: string
   label: string
   detail: WdaElementDetail
   children?: WdaElementNode[]
 }
-
-let xpathId = 1
 
 /**
  * 解析 WDA 返回的 XML 结构并转换为元素树
@@ -20,9 +19,6 @@ let xpathId = 1
  */
 export function parseWDAXml(xmlString: string): WdaElementNode[] {
   try {
-    // 重置全局 ID 计数器
-    xpathId = 1
-
     // 使用浏览器内置解析器处理 XML
     const parser = new DOMParser()
     const xmlDoc = parser.parseFromString(xmlString, 'text/xml')
@@ -71,7 +67,7 @@ export function getChildElements(elements: Element[], parentXpath: string): WdaE
 
     // 创建元素节点
     const node: WdaElementNode = {
-      id: xpathId++,
+      id: uuidv4(),
       label: `<${tagName}>`,
       detail: {
         xpath: currentXpath,
@@ -100,8 +96,7 @@ export function collectElementAttributes(element: Element): Record<string, strin
   const attributes: Record<string, string> = {}
 
   // 遍历所有属性节点
-  for (let i = 0; i < element.attributes.length; i++) {
-    const attr = element.attributes[i]
+  for (const attr of element.attributes) {
     attributes[attr.name] = attr.value
   }
 
